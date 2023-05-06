@@ -4,6 +4,7 @@
 #include <vector>
 #include<memory>
 #include<map>
+
 #include <llvm/ADT/APInt.h>
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/IRBuilder.h>
@@ -25,23 +26,15 @@ int main() {
     llvm::Module* module = new llvm::Module("MyModule", *context);
     llvm::IRBuilder<>* builder = new llvm::IRBuilder<>(*context);
 
-    
-    auto main_func = llvm::Function::Create(
-        llvm::FunctionType::get(builder->getInt32Ty(), false),
-        llvm::Function::ExternalLinkage, "main", module);
-    auto main_block = llvm::BasicBlock::Create(*context, "entry", main_func);
-    builder->SetInsertPoint(main_block);
-
-    auto var = std::make_unique<VarDeclAST>("x",0.0,TokenType::Int);
-    auto assign = std::make_unique<AssignExprAST>("x", std::make_unique<NumberExprAST<int>>(15).get());
+    auto var = std::make_unique<VarDeclAST<int>>("x",0,TokenType::Int);
+    auto assign = std::make_unique<AssignExprAST>("x", std::make_unique<NumberExprAST<int>>(10));
     auto console_output = std::make_unique<ConsoleOutputExprAST>(std::make_unique<VariableExprAST>("x"));
-
     auto block = std::make_unique<BlockAST>();
     block->addStatement(std::move(var));
     block->addStatement(std::move(assign));
     block->addStatement(std::move(console_output));
-    block->codegen(context, builder, module);
-    builder->CreateRet(std::make_unique<VariableExprAST>("x")->codegen(context, builder, module));
+    auto func = FunctionAST("main", TokenType::Bool, {}, std::move(block));
+    func.codegen(context, builder, module);
     module->print(llvm::outs(), nullptr);
 
     std::string error;
