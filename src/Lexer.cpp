@@ -55,9 +55,9 @@ Token Lexer::getIdentifier() {
     {
         return Token{ TokenType::Int, identifier };
     }
-    else if (identifier == "float")
+    else if (identifier == "double")
     {
-        return Token{ TokenType::Float, identifier };
+        return Token{ TokenType::Double, identifier };
     }
     else if (identifier == "bool")
     {

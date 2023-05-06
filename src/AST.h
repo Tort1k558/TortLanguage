@@ -11,22 +11,36 @@
 #include"Token.h"
 #include"externs.h"
 
+llvm::Type* getType(llvm::LLVMContext* context, TokenType type);
+
 class ASTNode {
 public:
     virtual ~ASTNode() = default;
     virtual llvm::Value* codegen(llvm::LLVMContext* context, llvm::IRBuilder<>* builder, llvm::Module* modul) = 0;
 };
-
 class VarDeclAST : public ASTNode {
 public:
-    VarDeclAST(const std::string& name, double value)
-        : m_name(name), m_value(value) {}
+    VarDeclAST(const std::string& name, double value,TokenType type)
+        : m_name(name), m_value(value),m_type(type) {}
 
     llvm::Value* codegen(llvm::LLVMContext* context, llvm::IRBuilder<>* builder, llvm::Module* modul) override
     {
-        llvm::AllocaInst* alloca = builder->CreateAlloca(llvm::Type::getDoubleTy(*context), nullptr, m_name.c_str());
-
-        llvm::Value* val = llvm::ConstantFP::get(*context, llvm::APFloat(m_value));
+        llvm::Type* type = getType(context, m_type);
+        llvm::AllocaInst* alloca = builder->CreateAlloca(type, nullptr, m_name.c_str());
+        
+        llvm::Value* val = nullptr;
+        if (type->isDoubleTy())
+        {
+            val = llvm::ConstantFP::get(*context, llvm::APFloat(m_value));
+        }
+        else if (type->isIntegerTy())
+        {
+            val = llvm::ConstantInt::get(llvm::Type::getInt32Ty(*context), static_cast<int>(m_value));
+        }
+        else
+        {
+            std::cout << "ERROR::This type is not supported yet" << std::endl;
+        }
         builder->CreateStore(val, alloca);
 
         Table::symbol_table[m_name] = alloca;
@@ -36,6 +50,7 @@ public:
 private:
     std::string m_name;
     double m_value;
+    TokenType m_type;
 };
 
 class VariableExprAST : public ASTNode {
@@ -77,16 +92,29 @@ private:
     const std::string m_varName;
     ASTNode* m_val;
 };
+template<typename T>
 class NumberExprAST : public ASTNode {
 public:
-    NumberExprAST(double value) : m_value(value) {}
+    NumberExprAST(T value) : m_value(value) {}
     llvm::Value* codegen(llvm::LLVMContext* context, llvm::IRBuilder<>* builder, llvm::Module* modul) override
     {
-        return llvm::ConstantFP::get(*context, llvm::APFloat(m_value));
+        if (std::is_same<T,double>::value)
+        {
+            return llvm::ConstantFP::get(*context, llvm::APFloat(static_cast<double>(m_value)));
+        }
+        else if (std::is_same<T, int>::value)
+        {
+            std::cout << "int" << std::endl;
+            return llvm::ConstantInt::get(llvm::Type::getInt32Ty(*context), m_value);
+        }
+        else if (std::is_same<T, int>::value)
+        {
+            std::cout << "bool" << std::endl;
+            return llvm::ConstantInt::get(llvm::Type::getInt1Ty(*context), m_value);
+        }
     }
-
 private:
-    double m_value;
+    T m_value;
 };
 
 class BinaryExprAST : public ASTNode {
@@ -147,8 +175,12 @@ public:
 
         std::string format_str;
         llvm::Type* i = val->getType();
-        if (i->isFloatTy() or i->isDoubleTy()) {
+        if (i->isFloatTy() || i->isDoubleTy()) {
             format_str = "%f\n";
+        }
+        else if (i->isIntegerTy())
+        {
+            format_str = "%d\n";
         }
 
         std::vector<llvm::Value*> printf_args;
@@ -167,18 +199,28 @@ class BlockAST : public ASTNode {
 public:
     BlockAST() = default;
 
-    void addStatement(ASTNode* stmt) {
-        m_stmts.push_back(stmt);
+    void addStatement(std::unique_ptr<ASTNode> stmt) {
+        m_stmts.push_back(std::move(stmt));
     }
 
     llvm::Value* codegen(llvm::LLVMContext* context, llvm::IRBuilder<>* builder, llvm::Module* modul) override {
         llvm::Value* lastVal = nullptr;
-        for (ASTNode* stmt : m_stmts) {
+        for (const auto& stmt : m_stmts) {
             lastVal = stmt->codegen(context, builder, modul);
         }
         return lastVal;
     }
 
 private:
-    std::vector<ASTNode*> m_stmts;
+    std::vector<std::unique_ptr<ASTNode>> m_stmts;
+};
+
+class FunctionAST : public ASTNode
+{
+public:
+
+private:
+    std::string m_name;
+    std::unique_ptr<BlockAST> m_body;
+    
 };

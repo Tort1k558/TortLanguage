@@ -6,7 +6,7 @@
 #include<llvm/IR/IRBuilder.h>
 #include<llvm/IR/IntrinsicsXCore.h>
 #include<llvm/IR/LLVMContext.h>
-#include"MyAST.h"
+#include"AST.h"
 class Parser
 {
 public:
