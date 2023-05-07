@@ -28,23 +28,23 @@ int main() {
     
 
     //Function Sum
-    std::vector<std::pair<TokenType, std::string>> sumArgs{ {TokenType::Double,"a"},{TokenType::Double,"b"}};
+    std::vector<std::pair<TokenType, std::string>> sumArgs{ {TokenType::Int,"a"},{TokenType::Int,"b"}};
     
-    auto sumAB = std::make_unique<BinaryExprAST>('+', std::make_unique<VariableExprAST>("a"), std::make_unique<VariableExprAST>("b"));
+    auto sumAB = std::make_unique<BinaryExprAST>(TokenType::Mul, std::make_unique<VariableExprAST>("a"), std::make_unique<VariableExprAST>("b"));
     auto retSum = std::make_unique<ReturnAST>(std::move(sumAB));
     auto sumBody = std::make_unique<BlockAST>();
     sumBody->addStatement(std::move(retSum));
 
-    auto sumFunc = std::make_unique<FunctionAST>("sum", TokenType::Double, sumArgs, std::move(sumBody));
+    auto sumFunc = std::make_unique<FunctionAST>("sum", TokenType::Int, sumArgs, std::move(sumBody));
     sumFunc->codegen(context, builder, module);
 
 
     //Function main
-    auto varX = std::make_unique<VarDeclAST<double>>("x",0.0,TokenType::Double);
-    auto varY = std::make_unique<VarDeclAST<double>>("y",0.0,TokenType::Double);
+    auto varX = std::make_unique<VarDeclAST<int>>("x",0,TokenType::Int);
+    auto varY = std::make_unique<VarDeclAST<int>>("y",0,TokenType::Int);
 
-    auto assignX = std::make_unique<AssignExprAST>("x", std::make_unique<NumberExprAST<double>>(10.0));
-    auto assignY = std::make_unique<AssignExprAST>("y", std::make_unique<NumberExprAST<double>>(50.0));
+    auto assignX = std::make_unique<AssignExprAST>("x", std::make_unique<NumberExprAST<int>>(10));
+    auto assignY = std::make_unique<AssignExprAST>("y", std::make_unique<NumberExprAST<int>>(50));
 
     std::vector<std::unique_ptr<ASTNode>> vecArgs;
     vecArgs.push_back(std::make_unique<VariableExprAST>("x"));

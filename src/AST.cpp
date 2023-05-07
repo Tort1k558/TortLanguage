@@ -21,7 +21,7 @@ template class VarDeclAST<int>;
 template class VarDeclAST<double>;
 template class VarDeclAST<bool>;
 template<typename T>
-llvm::Value* VarDeclAST<T>::codegen(llvm::LLVMContext* context, llvm::IRBuilder<>* builder, llvm::Module* modul)
+llvm::Value* VarDeclAST<T>::codegen(llvm::LLVMContext* context, llvm::IRBuilder<>* builder, llvm::Module* module)
 {
     llvm::Type* type = getType(context, m_type);
     llvm::AllocaInst* alloca = builder->CreateAlloca(type, nullptr, m_name.c_str());
@@ -50,11 +50,11 @@ llvm::Value* VarDeclAST<T>::codegen(llvm::LLVMContext* context, llvm::IRBuilder<
     return alloca;
 }
 
-llvm::Value* VariableExprAST::codegen(llvm::LLVMContext* context, llvm::IRBuilder<>* builder, llvm::Module* modul)
+llvm::Value* VariableExprAST::codegen(llvm::LLVMContext* context, llvm::IRBuilder<>* builder, llvm::Module* module)
 {
     llvm::Value* inst = Table::symbolTable[m_name];
     if (!inst) {
-        std::cerr << "Unknown variable name: " << m_name << std::endl;
+        std::cerr << "ERROR::Unknown variable name: " << m_name << std::endl;
         return nullptr;
     }
     llvm::Type* varType;
@@ -72,13 +72,13 @@ llvm::Value* VariableExprAST::codegen(llvm::LLVMContext* context, llvm::IRBuilde
     return var;
 }
 
-llvm::Value* AssignExprAST::codegen(llvm::LLVMContext* context, llvm::IRBuilder<>* builder, llvm::Module* modul)
+llvm::Value* AssignExprAST::codegen(llvm::LLVMContext* context, llvm::IRBuilder<>* builder, llvm::Module* module)
 {
     llvm::Value* var = Table::symbolTable[m_varName];
     if (!var) {
-        std::cerr << "Var is not defined" << std::endl;
+        std::cerr << "ERROR::Var is not defined" << std::endl;
     }
-    llvm::Value* val = m_val->codegen(context, builder, modul);
+    llvm::Value* val = m_val->codegen(context, builder, module);
     if (!val) {
         return nullptr;
     }
@@ -89,7 +89,7 @@ template class NumberExprAST<int>;
 template class NumberExprAST<double>;
 template class NumberExprAST<bool>;
 template<typename T>
-llvm::Value* NumberExprAST<T>::codegen(llvm::LLVMContext* context, llvm::IRBuilder<>* builder, llvm::Module* modul)
+llvm::Value* NumberExprAST<T>::codegen(llvm::LLVMContext* context, llvm::IRBuilder<>* builder, llvm::Module* module)
 {
     if (std::is_same<T, double>::value)
     {
@@ -105,44 +105,151 @@ llvm::Value* NumberExprAST<T>::codegen(llvm::LLVMContext* context, llvm::IRBuild
     }
 }
 
-llvm::Value* BinaryExprAST::codegen(llvm::LLVMContext* context, llvm::IRBuilder<>* builder, llvm::Module* modul)
+llvm::Value* BinaryExprAST::codegen(llvm::LLVMContext* context, llvm::IRBuilder<>* builder, llvm::Module* module)
 {
-    llvm::Value* lhsVal = m_lhs->codegen(context, builder, modul);
-    llvm::Value* rhsVal = m_rhs->codegen(context, builder, modul);
+    llvm::Value* lhsVal = m_lhs->codegen(context, builder, module);
+    llvm::Value* rhsVal = m_rhs->codegen(context, builder, module);
     if (!lhsVal || !rhsVal) {
         return nullptr;
     }
-
+    llvm::Type* lhsType = lhsVal->getType();
+    llvm::Type* rhsType = rhsVal->getType();
+    if (lhsType != rhsType)
+    {
+        if (lhsType->isDoubleTy() && rhsType->isIntegerTy())
+        {
+            rhsVal = builder->CreateSIToFP(rhsVal, lhsType, "sitofptmp");
+        }
+        else if(lhsType->isIntegerTy() && rhsType->isDoubleTy())
+        {
+            rhsVal = builder->CreateFPToSI(rhsVal, lhsType, "fptositmp");
+        }
+        else
+        {
+            std::cerr << "ERROR::Invalid type for binary operation " << lhsType <<" and "<<rhsType <<std::endl;
+            return nullptr;
+        }
+    }
     switch (m_op) {
-    case '+':
-        return builder->CreateFAdd(lhsVal, rhsVal, "addtmp");
-    case '-':
-        return builder->CreateFSub(lhsVal, rhsVal, "subtmp");
-    case '*':
-        return builder->CreateFMul(lhsVal, rhsVal, "multmp");
-    case '/':
-        return builder->CreateFDiv(lhsVal, rhsVal, "divtmp");
+    case TokenType::Plus:
+        if (lhsType->isDoubleTy())
+        {
+            return builder->CreateFAdd(lhsVal, rhsVal, "addtmp");
+        }
+        else if (lhsType->isIntegerTy())
+        {
+            return builder->CreateAdd(lhsVal, rhsVal, "addtmp");
+        }
+        else
+        {
+            std::cerr << "ERROR::Invalid type for binary operation " << lhsType << std::endl;
+            return nullptr;
+        }
+    case TokenType::Minus:
+        if (lhsType->isDoubleTy())
+        {
+            return builder->CreateFSub(lhsVal, rhsVal, "subtmp");
+        }
+        else if (lhsType->isIntegerTy())
+        {
+            return builder->CreateSub(lhsVal, rhsVal, "subtmp");
+        }
+        else
+        {
+            std::cerr << "ERROR::Invalid type for binary operation " << lhsType << std::endl;
+            return nullptr;
+        }
+    case TokenType::Mul:
+        if (lhsType->isDoubleTy())
+        {
+            return builder->CreateFMul(lhsVal, rhsVal, "multmp");
+        }
+        else if (lhsType->isIntegerTy())
+        {
+            return builder->CreateMul(lhsVal, rhsVal, "multmp");
+        }
+        else
+        {
+            std::cerr << "ERROR::Invalid type for binary operation " << lhsType << std::endl;
+            return nullptr;
+        }
+    case TokenType::Div:
+        if (lhsType->isDoubleTy())
+        {
+            return builder->CreateFDiv(lhsVal, rhsVal, "divtmp");
+        }
+        else if (lhsType->isIntegerTy())
+        {
+            return builder->CreateSDiv(lhsVal, rhsVal, "divtmp");
+        }
+        else
+        {
+            std::cerr << "ERROR::Invalid type for binary operation " << lhsType << std::endl;
+            return nullptr;
+        }
+    case TokenType::Less:
+        if (lhsType->isDoubleTy())
+        {
+            return builder->CreateFCmpULT(lhsVal, rhsVal, "lesstmp");
+        }
+        else if (lhsType->isIntegerTy())
+        {
+            return builder->CreateICmpSLT(lhsVal, rhsVal, "lesstmp");
+        }
+        else
+        {
+            std::cerr << "ERROR::Invalid type for binary operation " << lhsType << std::endl;
+            return nullptr;
+        }
+    case TokenType::Greater:
+        if (lhsType->isDoubleTy())
+        {
+            return builder->CreateFCmpUGT(lhsVal, rhsVal, "greatertmp");
+        }
+        else if (lhsType->isIntegerTy())
+        {
+            return builder->CreateICmpSGT(lhsVal, rhsVal, "greatertmp");
+        }
+        else
+        {
+            std::cerr << "ERROR::Invalid type for binary operation " << lhsType << std::endl;
+            return nullptr;
+        }
+    case TokenType::Equal:
+        if (lhsType->isDoubleTy())
+        {
+            return builder->CreateFCmpUEQ(lhsVal, rhsVal, "equaltmp");
+        }
+        else if (lhsType->isIntegerTy())
+        {
+            return builder->CreateICmpEQ(lhsVal, rhsVal, "equaltmp");
+        }
+        else
+        {
+            std::cerr << "ERROR::Invalid type for binary operation " << lhsType << std::endl;
+            return nullptr;
+        }
     default:
-        std::cerr << "Invalid binary operator: " << m_op << std::endl;
+        std::cerr << "ERROR::Invalid binary operator: " << g_nameTypes[static_cast<int>(m_op)] << std::endl;
         return nullptr;
     }
 }
 
-llvm::Value* ConsoleOutputExprAST::codegen(llvm::LLVMContext* context, llvm::IRBuilder<>* builder, llvm::Module* modul)
+llvm::Value* ConsoleOutputExprAST::codegen(llvm::LLVMContext* context, llvm::IRBuilder<>* builder, llvm::Module* module)
 {
     static llvm::Function* printFunc;
 
     if (!printFunc)
     {
         llvm::FunctionType* printFuncType = llvm::FunctionType::get(llvm::IntegerType::getInt32Ty(*context), llvm::PointerType::get(llvm::IntegerType::getInt8Ty(*context), 0), true);
-        printFunc = llvm::Function::Create(printFuncType, llvm::Function::ExternalLinkage, "printf", modul);
+        printFunc = llvm::Function::Create(printFuncType, llvm::Function::ExternalLinkage, "printf", module);
     }
     if (!printFunc) {
         std::cerr << "Printf function not found" << std::endl;
         return nullptr;
     }
 
-    llvm::Value* val = m_expr->codegen(context, builder, modul);
+    llvm::Value* val = m_expr->codegen(context, builder, module);
     if (!val) {
         return nullptr;
     }
@@ -178,15 +285,15 @@ llvm::Value* ConsoleOutputExprAST::codegen(llvm::LLVMContext* context, llvm::IRB
     return builder->CreateCall(printFunc, llvm::ArrayRef<llvm::Value* >(printfArgs));
 }
 
-llvm::Value* BlockAST::codegen(llvm::LLVMContext* context, llvm::IRBuilder<>* builder, llvm::Module* modul) {
+llvm::Value* BlockAST::codegen(llvm::LLVMContext* context, llvm::IRBuilder<>* builder, llvm::Module* module) {
     llvm::Value* lastVal = nullptr;
     for (const auto& stmt : m_stmts) {
-        lastVal = stmt->codegen(context, builder, modul);
+        lastVal = stmt->codegen(context, builder, module);
     }
     return lastVal;
 }
 
-llvm::Value* FunctionAST::codegen(llvm::LLVMContext* context, llvm::IRBuilder<>* builder, llvm::Module* modul)
+llvm::Value* FunctionAST::codegen(llvm::LLVMContext* context, llvm::IRBuilder<>* builder, llvm::Module* module)
 {
     std::vector<llvm::Type*> argTypes;
     for (const auto& arg : m_args) {
@@ -195,19 +302,21 @@ llvm::Value* FunctionAST::codegen(llvm::LLVMContext* context, llvm::IRBuilder<>*
 
     llvm::FunctionType* funcType = llvm::FunctionType::get(getType(context, m_retType), argTypes, false);
 
-    llvm::Function* func = llvm::Function::Create(funcType, llvm::Function::ExternalLinkage, m_name, modul);
+    llvm::Function* func = llvm::Function::Create(funcType, llvm::Function::ExternalLinkage, m_name, module);
 
     llvm::BasicBlock* block = llvm::BasicBlock::Create(*context, "entry", func);
     builder->SetInsertPoint(block);
 
     unsigned i = 0;
     for (auto& arg : func->args()) {
-        arg.setName(m_args[i].second);
-        Table::symbolTable.emplace(m_args[i].second, &arg);
+        arg.setName("arg"+std::to_string(i));
+        llvm::AllocaInst* argAlloc = builder->CreateAlloca(arg.getType(),nullptr,m_args[i].second);
+        builder->CreateStore(&arg, argAlloc);
+        Table::symbolTable.emplace(m_args[i].second, argAlloc);
         ++i;
     }
 
-    m_body->codegen(context, builder, modul);
+    m_body->codegen(context, builder, module);
 
     if (builder->GetInsertBlock()->getTerminator() == nullptr) {
         builder->CreateRet(llvm::Constant::getNullValue(getType(context, m_retType)));
@@ -216,24 +325,24 @@ llvm::Value* FunctionAST::codegen(llvm::LLVMContext* context, llvm::IRBuilder<>*
     return func;
 }
 
-llvm::Value* CallExprAST::codegen(llvm::LLVMContext* context, llvm::IRBuilder<>* builder, llvm::Module* modul)
+llvm::Value* CallExprAST::codegen(llvm::LLVMContext* context, llvm::IRBuilder<>* builder, llvm::Module* module)
 {
-    llvm::Function* func = modul->getFunction(m_name);
+    llvm::Function* func = module->getFunction(m_name);
     if (!func) {
         std::cout << "Function not found" << std::endl;
     }
 
     std::vector<llvm::Value*> args;
     for (const auto& arg : m_args) {
-        args.push_back(arg->codegen(context, builder, modul));
+        args.push_back(arg->codegen(context, builder, module));
     }
 
     return builder->CreateCall(func, args, "calltmp");
 }
 
-llvm::Value* ReturnAST::codegen(llvm::LLVMContext* context, llvm::IRBuilder<>* builder, llvm::Module* modul)
+llvm::Value* ReturnAST::codegen(llvm::LLVMContext* context, llvm::IRBuilder<>* builder, llvm::Module* module)
 {
-    llvm::Value* retVal = m_retExpr->codegen(context,builder,modul);
+    llvm::Value* retVal = m_retExpr->codegen(context,builder,module);
     builder->CreateRet(retVal);
     return retVal;
 }
