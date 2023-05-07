@@ -52,18 +52,29 @@ llvm::Value* VarDeclAST<T>::codegen(llvm::LLVMContext* context, llvm::IRBuilder<
 
 llvm::Value* VariableExprAST::codegen(llvm::LLVMContext* context, llvm::IRBuilder<>* builder, llvm::Module* modul)
 {
-    llvm::AllocaInst* inst = Table::symbolTable[m_name];
-    llvm::Value* var = builder->CreateLoad(inst->getAllocatedType(), inst);
-    if (!var) {
+    llvm::Value* inst = Table::symbolTable[m_name];
+    if (!inst) {
         std::cerr << "Unknown variable name: " << m_name << std::endl;
         return nullptr;
+    }
+    llvm::Type* varType;
+    llvm::Value* var;
+    if (inst->getType()->isPointerTy())
+    {
+        varType = llvm::dyn_cast<llvm::AllocaInst>(inst)->getAllocatedType();
+        var = builder->CreateLoad(varType, inst);
+    }
+    else
+    {
+        varType = inst->getType();
+        var = inst;
     }
     return var;
 }
 
 llvm::Value* AssignExprAST::codegen(llvm::LLVMContext* context, llvm::IRBuilder<>* builder, llvm::Module* modul)
 {
-    llvm::AllocaInst* var = Table::symbolTable[m_varName];
+    llvm::Value* var = Table::symbolTable[m_varName];
     if (!var) {
         std::cerr << "Var is not defined" << std::endl;
     }
@@ -186,14 +197,15 @@ llvm::Value* FunctionAST::codegen(llvm::LLVMContext* context, llvm::IRBuilder<>*
 
     llvm::Function* func = llvm::Function::Create(funcType, llvm::Function::ExternalLinkage, m_name, modul);
 
-    unsigned idx = 0;
-    for (auto& arg : func->args()) {
-        arg.setName(m_args[idx].second);
-        ++idx;
-    }
-
     llvm::BasicBlock* block = llvm::BasicBlock::Create(*context, "entry", func);
     builder->SetInsertPoint(block);
+
+    unsigned i = 0;
+    for (auto& arg : func->args()) {
+        arg.setName(m_args[i].second);
+        Table::symbolTable.emplace(m_args[i].second, &arg);
+        ++i;
+    }
 
     m_body->codegen(context, builder, modul);
 
@@ -203,6 +215,7 @@ llvm::Value* FunctionAST::codegen(llvm::LLVMContext* context, llvm::IRBuilder<>*
 
     return func;
 }
+
 llvm::Value* CallExprAST::codegen(llvm::LLVMContext* context, llvm::IRBuilder<>* builder, llvm::Module* modul)
 {
     llvm::Function* func = modul->getFunction(m_name);
@@ -216,4 +229,11 @@ llvm::Value* CallExprAST::codegen(llvm::LLVMContext* context, llvm::IRBuilder<>*
     }
 
     return builder->CreateCall(func, args, "calltmp");
+}
+
+llvm::Value* ReturnAST::codegen(llvm::LLVMContext* context, llvm::IRBuilder<>* builder, llvm::Module* modul)
+{
+    llvm::Value* retVal = m_retExpr->codegen(context,builder,modul);
+    builder->CreateRet(retVal);
+    return retVal;
 }

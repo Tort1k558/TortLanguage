@@ -21,6 +21,7 @@ public:
 template<typename T>
 class VarDeclAST : public ASTNode {
 public:
+    VarDeclAST() = delete;
     VarDeclAST(const std::string& name, T value,TokenType type)
         : m_name(name), m_value(value),m_type(type) {}
 
@@ -33,6 +34,7 @@ private:
 
 class VariableExprAST : public ASTNode {
 public:
+    VariableExprAST() = delete;
     VariableExprAST(std::string name) : m_name(std::move(name)) {}
 
     llvm::Value* codegen(llvm::LLVMContext* context, llvm::IRBuilder<>* builder, llvm::Module* modul) override;
@@ -42,6 +44,7 @@ private:
 };
 class AssignExprAST : public ASTNode {
 public:
+    AssignExprAST() = delete;
     AssignExprAST(const std::string& varName, std::unique_ptr<ASTNode> val)
         : m_varName(varName), m_val(std::move(val)) {}
 
@@ -54,6 +57,7 @@ private:
 template<typename T>
 class NumberExprAST : public ASTNode {
 public:
+    NumberExprAST() = delete;
     NumberExprAST(T value) : m_value(value) {}
     llvm::Value* codegen(llvm::LLVMContext* context, llvm::IRBuilder<>* builder, llvm::Module* modul) override;
 private:
@@ -62,8 +66,8 @@ private:
 
 class BinaryExprAST : public ASTNode {
 public:
-    BinaryExprAST(char op, std::unique_ptr<ASTNode> lhs,
-        std::unique_ptr<ASTNode> rhs)
+    BinaryExprAST() = delete;
+    BinaryExprAST(char op, std::unique_ptr<ASTNode> lhs, std::unique_ptr<ASTNode> rhs)
         : m_op(op), m_lhs(std::move(lhs)), m_rhs(std::move(rhs)) {}
     llvm::Value* codegen(llvm::LLVMContext* context, llvm::IRBuilder<>* builder, llvm::Module* modul) override;
 
@@ -74,6 +78,7 @@ private:
 
 class ConsoleOutputExprAST : public ASTNode {
 public:
+    ConsoleOutputExprAST() = delete;
     ConsoleOutputExprAST(std::unique_ptr<ASTNode> expr)
         : m_expr(std::move(expr)) {}
     llvm::Value* codegen(llvm::LLVMContext* context, llvm::IRBuilder<>* builder, llvm::Module* modul) override;
@@ -97,6 +102,7 @@ private:
 
 class FunctionAST : public ASTNode {
 public:
+    FunctionAST() = delete;
     FunctionAST(const std::string& name, TokenType retType,
         std::vector<std::pair<TokenType, std::string>> args,
         std::unique_ptr<BlockAST> body)
@@ -113,6 +119,7 @@ private:
 
 class CallExprAST : public ASTNode {
 public:
+    CallExprAST() = delete;
     CallExprAST(const std::string& name, std::vector<std::unique_ptr<ASTNode>> args)
         : m_name(name), m_args(std::move(args)) {}
 
@@ -121,4 +128,15 @@ public:
 private:
     std::string m_name;
     std::vector<std::unique_ptr<ASTNode>> m_args;
+};
+
+class ReturnAST : public ASTNode
+{
+public:
+    ReturnAST() = delete;
+    ReturnAST(std::unique_ptr<ASTNode> retExpr)
+        : m_retExpr(std::move(retExpr)){}
+    llvm::Value* codegen(llvm::LLVMContext* context, llvm::IRBuilder<>* builder, llvm::Module* modul) override;
+private:
+    std::unique_ptr<ASTNode> m_retExpr;
 };

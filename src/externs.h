@@ -6,5 +6,5 @@
 class Table
 {
 public:
-	static std::map<std::string, llvm::AllocaInst*> symbolTable;
+	static std::map<std::string, llvm::Value*> symbolTable;
 };
