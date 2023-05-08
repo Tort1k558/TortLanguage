@@ -20,11 +20,12 @@
 #include"src/TokenStream.h"
 #include"src/Parser.h"
 #include"src/AST.h"
+#include"src/LLVMManager.h"
 #include<fstream>
 int main() {
-    llvm::LLVMContext* context = new llvm::LLVMContext();
-    llvm::Module* module = new llvm::Module("MyModule", *context);
-    llvm::IRBuilder<>* builder = new llvm::IRBuilder<>(*context);
+    LLVMManager& manager = LLVMManager::getInstance();
+    std::shared_ptr<llvm::Module> module = manager.getModule();
+    
     
 
     //Function Sum
@@ -36,7 +37,7 @@ int main() {
     sumBody->addStatement(std::move(retSum));
 
     auto sumFunc = std::make_unique<FunctionAST>("sum", TokenType::Int, sumArgs, std::move(sumBody));
-    sumFunc->codegen(context, builder, module);
+    sumFunc->codegen();
 
 
     //Function main
@@ -58,7 +59,7 @@ int main() {
     block->addStatement(std::move(assignY));
     block->addStatement(std::move(console_output));
     auto func = std::make_unique<FunctionAST>("main", TokenType::Bool, std::vector<std::pair<TokenType, std::string>>(), std::move(block));
-    func->codegen(context, builder, module);
+    func->codegen();
 
     module->print(llvm::outs(), nullptr);
 

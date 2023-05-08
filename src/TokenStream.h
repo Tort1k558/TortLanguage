@@ -5,6 +5,7 @@
 
 class TokenStream
 {
+private:
 	struct StreamNode
 	{
 		StreamNode(StreamNode* next,StreamNode* prev):
@@ -100,16 +101,17 @@ class TokenStream
 			: m_currentStream(source),
 			  m_currentPos(currentPos) {}
 	};
-	Lexer* m_lexer;
-	StreamNode* m_head;
-	StreamNode* m_tail;
-	bool m_scanDone;
-	StreamNode* next(StreamNode* currentPos);
 public:
 	typedef TokenStreamIterator TokenIterator;
 	TokenStream(Lexer* lexer);
 	~TokenStream();
 
 	TokenStreamIterator begin();
+private:
+		Lexer* m_lexer;
+		StreamNode* m_head;
+		StreamNode* m_tail;
+		bool m_scanDone;
+		StreamNode* next(StreamNode* currentPos);
 };
 

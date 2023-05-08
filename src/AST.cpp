@@ -1,4 +1,5 @@
 #include "AST.h"
+#include"LLVMManager.h"
 
 llvm::Type* getType(llvm::LLVMContext* context, TokenType type)
 {
@@ -21,9 +22,13 @@ template class VarDeclAST<int>;
 template class VarDeclAST<double>;
 template class VarDeclAST<bool>;
 template<typename T>
-llvm::Value* VarDeclAST<T>::codegen(llvm::LLVMContext* context, llvm::IRBuilder<>* builder, llvm::Module* module)
+llvm::Value* VarDeclAST<T>::codegen()
 {
-    llvm::Type* type = getType(context, m_type);
+    LLVMManager& manager = LLVMManager::getInstance();
+    std::shared_ptr<llvm::LLVMContext> context = manager.getContext();
+    std::shared_ptr<llvm::IRBuilder<>> builder = manager.getBuilder();
+
+    llvm::Type* type = getType(context.get(), m_type);
     llvm::AllocaInst* alloca = builder->CreateAlloca(type, nullptr, m_name.c_str());
 
     llvm::Value* val = nullptr;
@@ -50,8 +55,11 @@ llvm::Value* VarDeclAST<T>::codegen(llvm::LLVMContext* context, llvm::IRBuilder<
     return alloca;
 }
 
-llvm::Value* VariableExprAST::codegen(llvm::LLVMContext* context, llvm::IRBuilder<>* builder, llvm::Module* module)
+llvm::Value* VariableExprAST::codegen()
 {
+    LLVMManager& manager = LLVMManager::getInstance();
+    std::shared_ptr<llvm::IRBuilder<>> builder = manager.getBuilder();
+
     llvm::Value* inst = Table::symbolTable[m_name];
     if (!inst) {
         std::cerr << "ERROR::Unknown variable name: " << m_name << std::endl;
@@ -72,13 +80,16 @@ llvm::Value* VariableExprAST::codegen(llvm::LLVMContext* context, llvm::IRBuilde
     return var;
 }
 
-llvm::Value* AssignExprAST::codegen(llvm::LLVMContext* context, llvm::IRBuilder<>* builder, llvm::Module* module)
+llvm::Value* AssignExprAST::codegen()
 {
+    LLVMManager& manager = LLVMManager::getInstance();
+    std::shared_ptr<llvm::IRBuilder<>> builder = manager.getBuilder();
+
     llvm::Value* var = Table::symbolTable[m_varName];
     if (!var) {
         std::cerr << "ERROR::Var is not defined" << std::endl;
     }
-    llvm::Value* val = m_val->codegen(context, builder, module);
+    llvm::Value* val = m_val->codegen();
     if (!val) {
         return nullptr;
     }
@@ -89,8 +100,11 @@ template class NumberExprAST<int>;
 template class NumberExprAST<double>;
 template class NumberExprAST<bool>;
 template<typename T>
-llvm::Value* NumberExprAST<T>::codegen(llvm::LLVMContext* context, llvm::IRBuilder<>* builder, llvm::Module* module)
+llvm::Value* NumberExprAST<T>::codegen()
 {
+    LLVMManager& manager = LLVMManager::getInstance();
+    std::shared_ptr<llvm::LLVMContext> context = manager.getContext();
+
     if (std::is_same<T, double>::value)
     {
         return llvm::ConstantFP::get(*context, llvm::APFloat(static_cast<double>(m_value)));
@@ -105,10 +119,14 @@ llvm::Value* NumberExprAST<T>::codegen(llvm::LLVMContext* context, llvm::IRBuild
     }
 }
 
-llvm::Value* BinaryExprAST::codegen(llvm::LLVMContext* context, llvm::IRBuilder<>* builder, llvm::Module* module)
+llvm::Value* BinaryExprAST::codegen()
 {
-    llvm::Value* lhsVal = m_lhs->codegen(context, builder, module);
-    llvm::Value* rhsVal = m_rhs->codegen(context, builder, module);
+    LLVMManager& manager = LLVMManager::getInstance();
+    std::shared_ptr<llvm::IRBuilder<>> builder = manager.getBuilder();
+
+    llvm::Value* lhsVal = m_lhs->codegen();
+    llvm::Value* rhsVal = m_rhs->codegen();
+
     if (!lhsVal || !rhsVal) {
         return nullptr;
     }
@@ -235,21 +253,24 @@ llvm::Value* BinaryExprAST::codegen(llvm::LLVMContext* context, llvm::IRBuilder<
     }
 }
 
-llvm::Value* ConsoleOutputExprAST::codegen(llvm::LLVMContext* context, llvm::IRBuilder<>* builder, llvm::Module* module)
+llvm::Value* ConsoleOutputExprAST::codegen()
 {
     static llvm::Function* printFunc;
-
+    LLVMManager& manager = LLVMManager::getInstance();
+    std::shared_ptr<llvm::LLVMContext> context = manager.getContext();
+    std::shared_ptr<llvm::Module> module = manager.getModule();
+    std::shared_ptr<llvm::IRBuilder<>> builder = manager.getBuilder();
     if (!printFunc)
     {
         llvm::FunctionType* printFuncType = llvm::FunctionType::get(llvm::IntegerType::getInt32Ty(*context), llvm::PointerType::get(llvm::IntegerType::getInt8Ty(*context), 0), true);
-        printFunc = llvm::Function::Create(printFuncType, llvm::Function::ExternalLinkage, "printf", module);
+        printFunc = llvm::Function::Create(printFuncType, llvm::Function::ExternalLinkage, "printf", *module);
     }
     if (!printFunc) {
         std::cerr << "Printf function not found" << std::endl;
         return nullptr;
     }
 
-    llvm::Value* val = m_expr->codegen(context, builder, module);
+    llvm::Value* val = m_expr->codegen();
     if (!val) {
         return nullptr;
     }
@@ -285,24 +306,29 @@ llvm::Value* ConsoleOutputExprAST::codegen(llvm::LLVMContext* context, llvm::IRB
     return builder->CreateCall(printFunc, llvm::ArrayRef<llvm::Value* >(printfArgs));
 }
 
-llvm::Value* BlockAST::codegen(llvm::LLVMContext* context, llvm::IRBuilder<>* builder, llvm::Module* module) {
+llvm::Value* BlockAST::codegen() {
     llvm::Value* lastVal = nullptr;
     for (const auto& stmt : m_stmts) {
-        lastVal = stmt->codegen(context, builder, module);
+        lastVal = stmt->codegen();
     }
     return lastVal;
 }
 
-llvm::Value* FunctionAST::codegen(llvm::LLVMContext* context, llvm::IRBuilder<>* builder, llvm::Module* module)
+llvm::Value* FunctionAST::codegen()
 {
+    LLVMManager& manager = LLVMManager::getInstance();
+    std::shared_ptr<llvm::LLVMContext> context = manager.getContext();
+    std::shared_ptr<llvm::Module> module = manager.getModule();
+    std::shared_ptr<llvm::IRBuilder<>> builder = manager.getBuilder();
+
     std::vector<llvm::Type*> argTypes;
     for (const auto& arg : m_args) {
-        argTypes.push_back(getType(context,arg.first));
+        argTypes.push_back(getType(context.get(), arg.first));
     }
 
-    llvm::FunctionType* funcType = llvm::FunctionType::get(getType(context, m_retType), argTypes, false);
+    llvm::FunctionType* funcType = llvm::FunctionType::get(getType(context.get(), m_retType), argTypes, false);
 
-    llvm::Function* func = llvm::Function::Create(funcType, llvm::Function::ExternalLinkage, m_name, module);
+    llvm::Function* func = llvm::Function::Create(funcType, llvm::Function::ExternalLinkage, m_name, module.get());
 
     llvm::BasicBlock* block = llvm::BasicBlock::Create(*context, "entry", func);
     builder->SetInsertPoint(block);
@@ -316,17 +342,21 @@ llvm::Value* FunctionAST::codegen(llvm::LLVMContext* context, llvm::IRBuilder<>*
         ++i;
     }
 
-    m_body->codegen(context, builder, module);
+    m_body->codegen();
 
     if (builder->GetInsertBlock()->getTerminator() == nullptr) {
-        builder->CreateRet(llvm::Constant::getNullValue(getType(context, m_retType)));
+        builder->CreateRet(llvm::Constant::getNullValue(getType(context.get(), m_retType)));
     }
 
     return func;
 }
 
-llvm::Value* CallExprAST::codegen(llvm::LLVMContext* context, llvm::IRBuilder<>* builder, llvm::Module* module)
+llvm::Value* CallExprAST::codegen()
 {
+    LLVMManager& manager = LLVMManager::getInstance();
+    std::shared_ptr<llvm::Module> module = manager.getModule();
+    std::shared_ptr<llvm::IRBuilder<>> builder = manager.getBuilder();
+
     llvm::Function* func = module->getFunction(m_name);
     if (!func) {
         std::cout << "Function not found" << std::endl;
@@ -334,15 +364,18 @@ llvm::Value* CallExprAST::codegen(llvm::LLVMContext* context, llvm::IRBuilder<>*
 
     std::vector<llvm::Value*> args;
     for (const auto& arg : m_args) {
-        args.push_back(arg->codegen(context, builder, module));
+        args.push_back(arg->codegen());
     }
 
     return builder->CreateCall(func, args, "calltmp");
 }
 
-llvm::Value* ReturnAST::codegen(llvm::LLVMContext* context, llvm::IRBuilder<>* builder, llvm::Module* module)
+llvm::Value* ReturnAST::codegen()
 {
-    llvm::Value* retVal = m_retExpr->codegen(context,builder,module);
+    LLVMManager& manager = LLVMManager::getInstance();
+    std::shared_ptr<llvm::IRBuilder<>> builder = manager.getBuilder();
+
+    llvm::Value* retVal = m_retExpr->codegen();
     builder->CreateRet(retVal);
     return retVal;
 }
