@@ -9,8 +9,7 @@
 #include<iostream>
 #include <cstdio>
 #include"Token.h"
-#include"externs.h"
-
+#include"SymbolTable.h"
 // 2)own symbolTable for each BlockAST
 // 3)auto type of return value function
 
@@ -19,7 +18,7 @@ llvm::Type* getType(llvm::LLVMContext* context, TokenType type);
 class ASTNode {
 public:
     virtual ~ASTNode() = default;
-    virtual llvm::Value* codegen() = 0;
+    virtual llvm::Value* codegen(std::shared_ptr<SymbolTable> symbolTable = nullptr) = 0;
 };
 
 template<typename T>
@@ -29,7 +28,7 @@ public:
     VarDeclAST(const std::string& name, T value,TokenType type)
         : m_name(name), m_value(value),m_type(type) {}
 
-    llvm::Value* codegen() override;
+    llvm::Value* codegen(std::shared_ptr<SymbolTable> symbolTable = nullptr) override;
 private:
     std::string m_name;
     T m_value;
@@ -41,7 +40,7 @@ public:
     VariableExprAST() = delete;
     VariableExprAST(std::string name) : m_name(std::move(name)) {}
 
-    llvm::Value* codegen() override;
+    llvm::Value* codegen(std::shared_ptr<SymbolTable> symbolTable = nullptr) override;
 
 private:
     std::string m_name;
@@ -53,7 +52,7 @@ public:
     AssignExprAST(const std::string& varName, std::unique_ptr<ASTNode> val)
         : m_varName(varName), m_val(std::move(val)) {}
 
-    llvm::Value* codegen() override;
+    llvm::Value* codegen(std::shared_ptr<SymbolTable> symbolTable = nullptr) override;
 
 private:
     const std::string m_varName;
@@ -65,7 +64,7 @@ class NumberExprAST : public ASTNode {
 public:
     NumberExprAST() = delete;
     NumberExprAST(T value) : m_value(value) {}
-    llvm::Value* codegen() override;
+    llvm::Value* codegen(std::shared_ptr<SymbolTable> symbolTable = nullptr) override;
 private:
     T m_value;
 };
@@ -75,7 +74,7 @@ public:
     BinaryExprAST() = delete;
     BinaryExprAST(TokenType op, std::unique_ptr<ASTNode> lhs, std::unique_ptr<ASTNode> rhs)
         : m_op(op), m_lhs(std::move(lhs)), m_rhs(std::move(rhs)) {}
-    llvm::Value* codegen() override;
+    llvm::Value* codegen(std::shared_ptr<SymbolTable> symbolTable = nullptr) override;
 
 private:
     TokenType m_op;
@@ -87,23 +86,32 @@ public:
     ConsoleOutputExprAST() = delete;
     ConsoleOutputExprAST(std::unique_ptr<ASTNode> expr)
         : m_expr(std::move(expr)) {}
-    llvm::Value* codegen() override;
+    llvm::Value* codegen(std::shared_ptr<SymbolTable> symbolTable = nullptr) override;
 private:
     std::unique_ptr<ASTNode> m_expr;
 };
 
 class BlockAST : public ASTNode {
 public:
-    BlockAST() = default;
+    BlockAST(std::shared_ptr<SymbolTable> symbolTable)
+        : m_symbolTable(std::make_shared<SymbolTable>())
+    {
+        m_symbolTable->extend(symbolTable.get());
+    }
 
     void addStatement(std::unique_ptr<ASTNode> stmt) {
         m_stmts.push_back(std::move(stmt));
     }
+    void extendSymbolTable(std::shared_ptr<SymbolTable> symbolTable)
+    {
+        m_symbolTable->extend(symbolTable.get());
+    }
 
-    llvm::Value* codegen() override;
+    llvm::Value* codegen(std::shared_ptr<SymbolTable> symbolTable = nullptr) override;
 
 private:
     std::vector<std::unique_ptr<ASTNode>> m_stmts;
+    std::shared_ptr<SymbolTable> m_symbolTable;
 };
 
 class FunctionAST : public ASTNode {
@@ -114,7 +122,7 @@ public:
         std::unique_ptr<BlockAST> body)
         : m_name(name), m_retType(retType), m_args(args), m_body(std::move(body)) {}
 
-    llvm::Value* codegen() override;
+    llvm::Value* codegen(std::shared_ptr<SymbolTable> symbolTable = nullptr) override;
 
 private:
     std::string m_name;
@@ -129,7 +137,7 @@ public:
     CallExprAST(const std::string& name, std::vector<std::unique_ptr<ASTNode>> args)
         : m_name(name), m_args(std::move(args)) {}
 
-    llvm::Value* codegen() override;
+    llvm::Value* codegen(std::shared_ptr<SymbolTable> symbolTable = nullptr) override;
 
 private:
     std::string m_name;
@@ -142,7 +150,7 @@ public:
     ReturnAST() = delete;
     ReturnAST(std::unique_ptr<ASTNode> retExpr)
         : m_retExpr(std::move(retExpr)){}
-    llvm::Value* codegen() override;
+    llvm::Value* codegen(std::shared_ptr<SymbolTable> symbolTable = nullptr) override;
 private:
     std::unique_ptr<ASTNode> m_retExpr;
 };

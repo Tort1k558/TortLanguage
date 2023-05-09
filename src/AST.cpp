@@ -22,7 +22,7 @@ template class VarDeclAST<int>;
 template class VarDeclAST<double>;
 template class VarDeclAST<bool>;
 template<typename T>
-llvm::Value* VarDeclAST<T>::codegen()
+llvm::Value* VarDeclAST<T>::codegen(std::shared_ptr<SymbolTable> symbolTable)
 {
     LLVMManager& manager = LLVMManager::getInstance();
     std::shared_ptr<llvm::LLVMContext> context = manager.getContext();
@@ -50,46 +50,31 @@ llvm::Value* VarDeclAST<T>::codegen()
     }
     builder->CreateStore(val, alloca);
 
-    Table::symbolTable[m_name] = alloca;
+    //Table::symbolTable[m_name] = alloca;
+    symbolTable->addVar(m_name, alloca);
 
     return alloca;
 }
 
-llvm::Value* VariableExprAST::codegen()
+llvm::Value* VariableExprAST::codegen(std::shared_ptr<SymbolTable> symbolTable)
 {
     LLVMManager& manager = LLVMManager::getInstance();
     std::shared_ptr<llvm::IRBuilder<>> builder = manager.getBuilder();
 
-    llvm::Value* inst = Table::symbolTable[m_name];
-    if (!inst) {
-        std::cerr << "ERROR::Unknown variable name: " << m_name << std::endl;
-        return nullptr;
-    }
-    llvm::Type* varType;
-    llvm::Value* var;
-    if (inst->getType()->isPointerTy())
-    {
-        varType = llvm::dyn_cast<llvm::AllocaInst>(inst)->getAllocatedType();
-        var = builder->CreateLoad(varType, inst);
-    }
-    else
-    {
-        varType = inst->getType();
-        var = inst;
-    }
+    llvm::Value* var = symbolTable->getValueVar(m_name);
     return var;
 }
 
-llvm::Value* AssignExprAST::codegen()
+llvm::Value* AssignExprAST::codegen(std::shared_ptr<SymbolTable> symbolTable)
 {
     LLVMManager& manager = LLVMManager::getInstance();
     std::shared_ptr<llvm::IRBuilder<>> builder = manager.getBuilder();
 
-    llvm::Value* var = Table::symbolTable[m_varName];
+    llvm::Value* var = symbolTable->getPtrVar(m_varName);
     if (!var) {
         std::cerr << "ERROR::Var is not defined" << std::endl;
     }
-    llvm::Value* val = m_val->codegen();
+    llvm::Value* val = m_val->codegen(symbolTable);
     if (!val) {
         return nullptr;
     }
@@ -100,7 +85,7 @@ template class NumberExprAST<int>;
 template class NumberExprAST<double>;
 template class NumberExprAST<bool>;
 template<typename T>
-llvm::Value* NumberExprAST<T>::codegen()
+llvm::Value* NumberExprAST<T>::codegen(std::shared_ptr<SymbolTable> symbolTable)
 {
     LLVMManager& manager = LLVMManager::getInstance();
     std::shared_ptr<llvm::LLVMContext> context = manager.getContext();
@@ -119,13 +104,13 @@ llvm::Value* NumberExprAST<T>::codegen()
     }
 }
 
-llvm::Value* BinaryExprAST::codegen()
+llvm::Value* BinaryExprAST::codegen(std::shared_ptr<SymbolTable> symbolTable)
 {
     LLVMManager& manager = LLVMManager::getInstance();
     std::shared_ptr<llvm::IRBuilder<>> builder = manager.getBuilder();
 
-    llvm::Value* lhsVal = m_lhs->codegen();
-    llvm::Value* rhsVal = m_rhs->codegen();
+    llvm::Value* lhsVal = m_lhs->codegen(symbolTable);
+    llvm::Value* rhsVal = m_rhs->codegen(symbolTable);
 
     if (!lhsVal || !rhsVal) {
         return nullptr;
@@ -253,7 +238,7 @@ llvm::Value* BinaryExprAST::codegen()
     }
 }
 
-llvm::Value* ConsoleOutputExprAST::codegen()
+llvm::Value* ConsoleOutputExprAST::codegen(std::shared_ptr<SymbolTable> symbolTable)
 {
     static llvm::Function* printFunc;
     LLVMManager& manager = LLVMManager::getInstance();
@@ -270,7 +255,7 @@ llvm::Value* ConsoleOutputExprAST::codegen()
         return nullptr;
     }
 
-    llvm::Value* val = m_expr->codegen();
+    llvm::Value* val = m_expr->codegen(symbolTable);
     if (!val) {
         return nullptr;
     }
@@ -306,15 +291,15 @@ llvm::Value* ConsoleOutputExprAST::codegen()
     return builder->CreateCall(printFunc, llvm::ArrayRef<llvm::Value* >(printfArgs));
 }
 
-llvm::Value* BlockAST::codegen() {
+llvm::Value* BlockAST::codegen(std::shared_ptr<SymbolTable> symbolTable) {
     llvm::Value* lastVal = nullptr;
     for (const auto& stmt : m_stmts) {
-        lastVal = stmt->codegen();
+        lastVal = stmt->codegen(m_symbolTable);
     }
     return lastVal;
 }
 
-llvm::Value* FunctionAST::codegen()
+llvm::Value* FunctionAST::codegen(std::shared_ptr<SymbolTable> symbolTable)
 {
     LLVMManager& manager = LLVMManager::getInstance();
     std::shared_ptr<llvm::LLVMContext> context = manager.getContext();
@@ -332,17 +317,18 @@ llvm::Value* FunctionAST::codegen()
 
     llvm::BasicBlock* block = llvm::BasicBlock::Create(*context, "entry", func);
     builder->SetInsertPoint(block);
-
+    std::shared_ptr<SymbolTable> symbolTableFunc = std::make_shared<SymbolTable>();
+    symbolTableFunc->extend(symbolTable.get());
     unsigned i = 0;
     for (auto& arg : func->args()) {
         arg.setName("arg"+std::to_string(i));
         llvm::AllocaInst* argAlloc = builder->CreateAlloca(arg.getType(),nullptr,m_args[i].second);
         builder->CreateStore(&arg, argAlloc);
-        Table::symbolTable.emplace(m_args[i].second, argAlloc);
+        symbolTableFunc->addVar(m_args[i].second, argAlloc);
         ++i;
     }
-
-    m_body->codegen();
+    m_body->extendSymbolTable(symbolTableFunc);
+    m_body->codegen(symbolTableFunc);
 
     if (builder->GetInsertBlock()->getTerminator() == nullptr) {
         builder->CreateRet(llvm::Constant::getNullValue(getType(context.get(), m_retType)));
@@ -351,7 +337,7 @@ llvm::Value* FunctionAST::codegen()
     return func;
 }
 
-llvm::Value* CallExprAST::codegen()
+llvm::Value* CallExprAST::codegen(std::shared_ptr<SymbolTable> symbolTable)
 {
     LLVMManager& manager = LLVMManager::getInstance();
     std::shared_ptr<llvm::Module> module = manager.getModule();
@@ -364,18 +350,18 @@ llvm::Value* CallExprAST::codegen()
 
     std::vector<llvm::Value*> args;
     for (const auto& arg : m_args) {
-        args.push_back(arg->codegen());
+        args.push_back(arg->codegen(symbolTable));
     }
 
     return builder->CreateCall(func, args, "calltmp");
 }
 
-llvm::Value* ReturnAST::codegen()
+llvm::Value* ReturnAST::codegen(std::shared_ptr<SymbolTable> symbolTable)
 {
     LLVMManager& manager = LLVMManager::getInstance();
     std::shared_ptr<llvm::IRBuilder<>> builder = manager.getBuilder();
 
-    llvm::Value* retVal = m_retExpr->codegen();
+    llvm::Value* retVal = m_retExpr->codegen(symbolTable);
     builder->CreateRet(retVal);
     return retVal;
 }
