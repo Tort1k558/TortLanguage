@@ -1,28 +1,15 @@
 ﻿#pragma once
-#include <iostream>
-#include <string>
-#include <vector>
+#include<iostream>
+#include<fstream>
+#include<string>
+#include<vector>
 #include<memory>
 #include<map>
 
-#include <llvm/ADT/APInt.h>
-#include <llvm/IR/Constants.h>
-#include <llvm/IR/IRBuilder.h>
-#include <llvm/IR/LLVMContext.h>
-#include <llvm/IR/Module.h>
-#include <llvm/IR/Verifier.h>
-#include <llvm/ExecutionEngine/MCJIT.h>
-#include <llvm/ExecutionEngine/ExecutionEngine.h>
-#include <llvm/ExecutionEngine/GenericValue.h>
-
-#include"src/Token.h"
 #include"src/Lexer.h"
 #include"src/TokenStream.h"
 #include"src/Parser.h"
-#include"src/AST.h"
 #include"src/LLVMManager.h"
-#include"src/SymbolTable.h"
-#include<fstream>
 int main() {
     std::string m_input =
         "def int sum(int f,int e){return f+e;}"
