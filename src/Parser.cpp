@@ -22,7 +22,6 @@ void Parser::parse()
 		switch (m_tokenStream->type)
 		{
 		case TokenType::Def:
-			m_tokenStream++;
 			parseFunction();
 			break;
 		case TokenType::Int:
@@ -31,12 +30,12 @@ void Parser::parse()
 			m_tokenStream++;
 			break;
 		default:
-			m_tokenStream++;
+			std::cerr << "ERROR::PARSER::Unknown Token: " << g_nameTypes[static_cast<int>(m_tokenStream->type)] << std::endl;
 			break;
 		}
 	}
 }
-std::shared_ptr<ASTNode> Parser::parseExpr()
+std::shared_ptr<ASTNode> Parser::parseLiteral()
 {
 	switch (m_tokenStream->type)
 	{
@@ -52,23 +51,97 @@ std::shared_ptr<ASTNode> Parser::parseExpr()
 		m_tokenStream++;
 		return std::make_shared<LiteralExprAST<double>>(std::stod(value));
 	}
-	case TokenType::Identifier:
+	}
+}
+std::shared_ptr<VarExprAST> Parser::parseVariable()
+{
+	std::string varName = check({TokenType::Identifier}).value;
+	m_tokenStream++;
+	return std::make_shared<VarExprAST>(varName);
+}
+std::shared_ptr<ASTNode> Parser::parseExpression()
+{
+	std::shared_ptr<ASTNode> lhs = parseTerm();
+
+	while (m_tokenStream->type == TokenType::Plus || m_tokenStream->type == TokenType::Minus)
 	{
-		std::string varName = m_tokenStream->value;
+		Token opToken = *m_tokenStream;
 		m_tokenStream++;
-		return std::make_shared<VarExprAST>(varName);
+
+		std::shared_ptr<ASTNode> rhs = parseTerm();
+
+		if (opToken.type == TokenType::Plus)
+		{
+			lhs = std::make_shared<BinaryExprAST>(TokenType::Plus, lhs, rhs);
+		}
+		else if (opToken.type == TokenType::Minus)
+		{
+			lhs = std::make_shared<BinaryExprAST>(TokenType::Minus, lhs, rhs);
+		}
 	}
-	case TokenType::OpenParen:
+
+	return parseCompareExpr(lhs);
+}
+std::shared_ptr<ASTNode> Parser::parseCompareExpr(std::shared_ptr<ASTNode> lhs)
+{
+	if (m_tokenStream->type == TokenType::Less || m_tokenStream->type == TokenType::Greater || m_tokenStream->type == TokenType::Equal)
+	{
+		TokenType op = m_tokenStream->type;
 		m_tokenStream++;
-		return parseExpr();
-		check({ TokenType::CloseParen });
-		m_tokenStream++;
-	default:
-		break;
+		std::shared_ptr<ASTNode> rhs = parseTerm();
+		lhs = std::make_shared<BinaryExprAST>(op, lhs, rhs);
+		return lhs;
 	}
-	return nullptr;
+	return lhs;
+}
+std::shared_ptr<ASTNode> Parser::parseTerm()
+{
+	std::shared_ptr<ASTNode> lhs = parseFactor();
+
+	while (m_tokenStream->type == TokenType::Mul || m_tokenStream->type == TokenType::Div)
+	{
+		Token opToken = *m_tokenStream;
+		m_tokenStream++;
+
+		std::shared_ptr<ASTNode> rhs = parseFactor();
+
+		if (opToken.type == TokenType::Mul)
+		{
+			lhs = std::make_shared<BinaryExprAST>(TokenType::Mul, lhs, rhs);
+		}
+		else if (opToken.type == TokenType::Div)
+		{
+			lhs = std::make_shared<BinaryExprAST>(TokenType::Div, lhs, rhs);
+		}
+	}
+
+	return lhs;
 }
 
+std::shared_ptr<ASTNode> Parser::parseFactor()
+{
+	if (m_tokenStream->type == TokenType::OpenParen)
+	{
+		m_tokenStream++;
+		std::shared_ptr<ASTNode> expression = parseExpression();
+		check({ TokenType::CloseParen });
+		m_tokenStream++;
+		return expression;
+	}
+	else if (m_tokenStream->type == TokenType::Identifier)
+	{
+		return parseVariable();
+	}
+	else if (m_tokenStream->type == TokenType::IntNumber || m_tokenStream->type == TokenType::DoubleNumber)
+	{
+		return parseLiteral();
+	}
+	else
+	{
+		std::cerr << "ERROR::PARSER::Unexpected Token: " << g_nameTypes[static_cast<int>(m_tokenStream->type)] << std::endl;
+		return nullptr;
+	}
+}
 std::shared_ptr<AssignExprAST> Parser::parseAssign()
 {
 	std::shared_ptr<ASTNode> val;
@@ -76,7 +149,7 @@ std::shared_ptr<AssignExprAST> Parser::parseAssign()
 	m_tokenStream++;
 	check({ TokenType::Assign });
 	m_tokenStream++;
-	val = parseExpr();
+	val = parseExpression();
 	return std::make_shared<AssignExprAST>(varName, val);
 }
 std::shared_ptr<ASTNode> Parser::parseStatement()
@@ -104,8 +177,9 @@ std::shared_ptr<ASTNode> Parser::parseStatement()
 		{
 			return parseCallFunc();
 		}
-		return parseExpr();
-		break;
+		return parseExpression();
+	case TokenType::Return:
+		return parseReturn();
 	default:
 		m_tokenStream++;
 		break;
@@ -114,27 +188,34 @@ std::shared_ptr<ASTNode> Parser::parseStatement()
 std::vector<std::shared_ptr<VarDeclAST>> Parser::parseVarDecl()
 {
 	std::vector<std::shared_ptr<VarDeclAST>> vars;
-	std::vector<std::string> varNames;
+	std::vector<std::pair<std::string, std::shared_ptr<ASTNode>>> varsAssign;
 	TokenType varType = checkType().type;
 	m_tokenStream++;
-	std::string name = check({ TokenType::Identifier }).value;
-	m_tokenStream++;
-	varNames.push_back(name);
-	if (m_tokenStream->type == TokenType::Semicolon)
+	while (m_tokenStream->type != TokenType::Semicolon)
 	{
-		vars.push_back(std::make_shared<VarDeclAST>(name, 0.0, varType));
-		return vars;
-	}
-	else if (m_tokenStream->type == TokenType::Comma)
-	{
-		while (m_tokenStream->type != TokenType::Semicolon)
+		if (m_tokenStream->type == TokenType::Comma)
 		{
-			
+			m_tokenStream++;
+			continue;
+		}
+		else if (m_tokenStream->type == TokenType::Identifier && m_tokenStream.next().type == TokenType::Assign)
+		{
+			std::string varName = m_tokenStream->value;
+			m_tokenStream++;
+			m_tokenStream++;
+			std::shared_ptr<ASTNode> value = parseExpression();
+			varsAssign.push_back({ varName, value });
+		}
+		else if (m_tokenStream->type == TokenType::Identifier && m_tokenStream.next().type != TokenType::Assign)
+		{
+			std::string varName = m_tokenStream->value;
+			m_tokenStream++;
+			varsAssign.push_back({ varName, nullptr });
 		}
 	}
-	for (size_t i = 0; i < varNames.size(); i++)
+	for (const auto& assign : varsAssign)
 	{
-
+		vars.push_back(std::make_shared<VarDeclAST>(assign.first, assign.second, varType));
 	}
 	return vars;
 }
@@ -191,7 +272,7 @@ std::shared_ptr<CallExprAST> Parser::parseCallFunc()
 			m_tokenStream++;
 			continue;
 		}
-		std::shared_ptr<ASTNode> arg = parseExpr();
+		std::shared_ptr<ASTNode> arg = parseExpression();
 		callArgs.push_back(std::move(arg));
 	}
 	check({ TokenType::CloseParen });
@@ -200,6 +281,8 @@ std::shared_ptr<CallExprAST> Parser::parseCallFunc()
 }
 std::shared_ptr<FunctionAST> Parser::parseFunction()
 {
+	check({ TokenType::Def });
+	m_tokenStream++;
 	TokenType type = checkType().type;
 	m_tokenStream++;
 	std::string funcName = check({ TokenType::Identifier }).value;
@@ -209,6 +292,11 @@ std::shared_ptr<FunctionAST> Parser::parseFunction()
 	auto func = std::make_shared<FunctionAST>(funcName, type, args, std::move(body));
 	func->codegen(m_globalSymbolTable);
 	return func;
+}
+std::shared_ptr<ReturnAST> Parser::parseReturn()
+{
+	m_tokenStream++;
+	return std::make_shared<ReturnAST>(parseExpression());
 }
 Token Parser::check(std::vector<TokenType> types)
 {
@@ -226,7 +314,7 @@ Token Parser::check(std::vector<TokenType> types)
 		std::cerr << g_nameTypes[static_cast<int>(token)];
 	}
 	std::cerr << std::endl;
-	return {};
+	return {TokenType::Invalid,};
 }
 
 Token Parser::checkType()

@@ -24,13 +24,13 @@ public:
 class VarDeclAST : public ASTNode {
 public:
     VarDeclAST() = delete;
-    VarDeclAST(const std::string& name, double value,TokenType type)
-        : m_name(name), m_value(value),m_type(type) {}
+    VarDeclAST(const std::string& name, std::shared_ptr<ASTNode> value,TokenType type)
+        : m_name(name), m_value(std::move(value)),m_type(type) {}
 
     llvm::Value* codegen(std::shared_ptr<SymbolTable> symbolTable = nullptr) override;
 private:
     std::string m_name;
-    double m_value;
+    std::shared_ptr<ASTNode> m_value;
     TokenType m_type;
 };
 

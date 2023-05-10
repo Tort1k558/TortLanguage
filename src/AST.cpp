@@ -30,27 +30,32 @@ llvm::Value* VarDeclAST::codegen(std::shared_ptr<SymbolTable> symbolTable)
 
     llvm::Type* type = getType(m_type);
     llvm::AllocaInst* alloca = builder->CreateAlloca(type, nullptr, m_name.c_str());
-
-    llvm::Value* val = nullptr;
-    if (type->isDoubleTy())
+    llvm::Value* val;
+    if (m_value == nullptr)
     {
-        val = llvm::ConstantFP::get(*context, llvm::APFloat(static_cast<double>(m_value)));
-    }
-    else if (type->isIntegerTy())
-    {
-        val = llvm::ConstantInt::get(llvm::Type::getInt32Ty(*context), static_cast<int>(m_value));
-    }
-    else if (type->isIntegerTy(1))
-    {
-        val = llvm::ConstantInt::get(llvm::Type::getInt1Ty(*context), static_cast<int>(m_value));
+        if (type->isDoubleTy())
+        {
+            val = llvm::ConstantFP::get(*context, llvm::APFloat(0.0));
+        }
+        else if (type->isIntegerTy())
+        {
+            val = llvm::ConstantInt::get(llvm::Type::getInt32Ty(*context), 0);
+        }
+        else if (type->isIntegerTy(1))
+        {
+            val = llvm::ConstantInt::get(llvm::Type::getInt1Ty(*context), false);
+        }
+        else
+        {
+            std::cerr << "ERROR::This type is not supported yet" << std::endl;
+        }
     }
     else
     {
-        std::cout << "ERROR::This type is not supported yet" << std::endl;
+        val = m_value->codegen(symbolTable);
     }
     builder->CreateStore(val, alloca);
 
-    //Table::symbolTable[m_name] = alloca;
     symbolTable->addVar(m_name, alloca);
 
     return alloca;

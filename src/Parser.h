@@ -16,19 +16,26 @@ public:
 private:
 	TokenStream m_tokenStream;
 	std::shared_ptr<SymbolTable> m_globalSymbolTable;
-	Token check(std::vector<TokenType> types);
-	Token checkType();
-	std::shared_ptr<BlockAST> parseBlock();
-	std::shared_ptr<ASTNode> parseExpr();
-	std::vector<std::shared_ptr<VarDeclAST>> parseVarDecl();
-	std::shared_ptr<FunctionAST> parseFunction();
-	std::shared_ptr<AssignExprAST> parseAssign();
-	std::shared_ptr<CallExprAST> parseCallFunc();
-	std::shared_ptr<ASTNode> Parser::parseStatement();
-	std::vector<std::pair<TokenType, std::string>> parseArgs();
 	std::shared_ptr<llvm::LLVMContext> m_context;
 	std::shared_ptr<llvm::Module> m_module;
 	std::shared_ptr<llvm::IRBuilder<>> m_builder;
+
+	Token check(std::vector<TokenType> types);
+	Token checkType();
+	std::shared_ptr<BlockAST> parseBlock();
+	std::shared_ptr<ASTNode> Parser::parseStatement();
+	std::shared_ptr<ASTNode> parseLiteral();
+	std::shared_ptr<VarExprAST> parseVariable();
+	std::shared_ptr<AssignExprAST> parseAssign();
+	std::shared_ptr<ASTNode> Parser::parseFactor();
+	std::shared_ptr<ASTNode> Parser::parseTerm();
+	std::shared_ptr<ASTNode> Parser::parseExpression();
+	std::shared_ptr<ASTNode> Parser::parseCompareExpr(std::shared_ptr<ASTNode> left);
+	std::vector<std::shared_ptr<VarDeclAST>> parseVarDecl();
+	std::shared_ptr<FunctionAST> parseFunction();
+	std::shared_ptr<CallExprAST> parseCallFunc();
+	std::shared_ptr<ReturnAST> parseReturn();
+	std::vector<std::pair<TokenType, std::string>> parseArgs();
 
 };
 
