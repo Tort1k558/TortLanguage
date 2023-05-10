@@ -1,8 +1,10 @@
 #include "AST.h"
 #include"LLVMManager.h"
 
-llvm::Type* getType(llvm::LLVMContext* context, TokenType type)
+llvm::Type* getType(TokenType type)
 {
+    LLVMManager& manager = LLVMManager::getInstance();
+    std::shared_ptr<llvm::LLVMContext> context = manager.getContext();
     switch (type)
     {
     case TokenType::Bool:
@@ -18,17 +20,15 @@ llvm::Type* getType(llvm::LLVMContext* context, TokenType type)
     }
     std::cout << "ERROR::UnknownType::" << g_nameTypes[static_cast<int>(type)];
 }
-template class VarDeclAST<int>;
-template class VarDeclAST<double>;
-template class VarDeclAST<bool>;
-template<typename T>
-llvm::Value* VarDeclAST<T>::codegen(std::shared_ptr<SymbolTable> symbolTable)
+
+llvm::Value* VarDeclAST::codegen(std::shared_ptr<SymbolTable> symbolTable)
 {
+    //Переписать алгоритм присваивания начального значения
     LLVMManager& manager = LLVMManager::getInstance();
     std::shared_ptr<llvm::LLVMContext> context = manager.getContext();
     std::shared_ptr<llvm::IRBuilder<>> builder = manager.getBuilder();
 
-    llvm::Type* type = getType(context.get(), m_type);
+    llvm::Type* type = getType(m_type);
     llvm::AllocaInst* alloca = builder->CreateAlloca(type, nullptr, m_name.c_str());
 
     llvm::Value* val = nullptr;
@@ -56,7 +56,7 @@ llvm::Value* VarDeclAST<T>::codegen(std::shared_ptr<SymbolTable> symbolTable)
     return alloca;
 }
 
-llvm::Value* VariableExprAST::codegen(std::shared_ptr<SymbolTable> symbolTable)
+llvm::Value* VarExprAST::codegen(std::shared_ptr<SymbolTable> symbolTable)
 {
     LLVMManager& manager = LLVMManager::getInstance();
     std::shared_ptr<llvm::IRBuilder<>> builder = manager.getBuilder();
@@ -81,11 +81,11 @@ llvm::Value* AssignExprAST::codegen(std::shared_ptr<SymbolTable> symbolTable)
     builder->CreateStore(val, var);
 }
 
-template class NumberExprAST<int>;
-template class NumberExprAST<double>;
-template class NumberExprAST<bool>;
+template class LiteralExprAST<int>;
+template class LiteralExprAST<double>;
+template class LiteralExprAST<bool>;
 template<typename T>
-llvm::Value* NumberExprAST<T>::codegen(std::shared_ptr<SymbolTable> symbolTable)
+llvm::Value* LiteralExprAST<T>::codegen(std::shared_ptr<SymbolTable> symbolTable)
 {
     LLVMManager& manager = LLVMManager::getInstance();
     std::shared_ptr<llvm::LLVMContext> context = manager.getContext();
@@ -308,18 +308,19 @@ llvm::Value* FunctionAST::codegen(std::shared_ptr<SymbolTable> symbolTable)
 
     std::vector<llvm::Type*> argTypes;
     for (const auto& arg : m_args) {
-        argTypes.push_back(getType(context.get(), arg.first));
+        argTypes.push_back(getType(arg.first));
     }
 
-    llvm::FunctionType* funcType = llvm::FunctionType::get(getType(context.get(), m_retType), argTypes, false);
-
+    llvm::FunctionType* funcType = llvm::FunctionType::get(getType(m_retType), argTypes, false);
     llvm::Function* func = llvm::Function::Create(funcType, llvm::Function::ExternalLinkage, m_name, module.get());
 
     llvm::BasicBlock* block = llvm::BasicBlock::Create(*context, "entry", func);
     builder->SetInsertPoint(block);
+
     std::shared_ptr<SymbolTable> symbolTableFunc = std::make_shared<SymbolTable>();
     symbolTableFunc->extend(symbolTable.get());
-    unsigned i = 0;
+
+    unsigned int i = 0;
     for (auto& arg : func->args()) {
         arg.setName("arg"+std::to_string(i));
         llvm::AllocaInst* argAlloc = builder->CreateAlloca(arg.getType(),nullptr,m_args[i].second);
@@ -327,11 +328,12 @@ llvm::Value* FunctionAST::codegen(std::shared_ptr<SymbolTable> symbolTable)
         symbolTableFunc->addVar(m_args[i].second, argAlloc);
         ++i;
     }
+
     m_body->extendSymbolTable(symbolTableFunc);
     m_body->codegen(symbolTableFunc);
 
     if (builder->GetInsertBlock()->getTerminator() == nullptr) {
-        builder->CreateRet(llvm::Constant::getNullValue(getType(context.get(), m_retType)));
+        builder->CreateRet(llvm::Constant::getNullValue(getType(m_retType)));
     }
 
     return func;

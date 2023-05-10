@@ -3,7 +3,7 @@
 #include<stdexcept>
 class Lexer {
 public:
-    Lexer(std::string input);
+    Lexer(const std::string& input);
 
     Token getNextToken();
 

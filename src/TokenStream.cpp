@@ -1,49 +1,66 @@
 #include "TokenStream.h"
 
-TokenStream::TokenStream(Lexer* lex)
-    : m_lexer(lex),
-    m_head(nullptr),
-    m_tail(nullptr),
-    m_scanDone(false) {
-}
-TokenStream::~TokenStream()
+TokenStream::TokenStream(std::shared_ptr<Lexer> lex)
+    : m_lexer(std::move(lex)),
+	m_currentPos(0)
 {
-    StreamNode* p = m_head;
+	Token token = m_lexer->getNextToken();
+	while (token.type != TokenType::EndOfFile)
+	{
+		m_tokens.push_back(token);
+		token = m_lexer->getNextToken();
+	}
+	m_tokens.push_back(token);
+}
 
-    while (p) {
-        StreamNode* tmp = p;
-        p = p->next;
-        delete tmp;
-    }
-}
-TokenStream::TokenStreamIterator TokenStream::begin()
+Token TokenStream::next()
 {
-    if (!m_head)
-    {
-        StreamNode* p = new StreamNode(nullptr, nullptr);
-        p->token = m_lexer->getNextToken();
-        m_scanDone = p->token.type == TokenType::EndOfFile;
-        m_tail = m_head = p;
-    }
-    return(TokenStreamIterator(this, m_head));
+	return m_tokens[m_currentPos + 1];
 }
-TokenStream::StreamNode* TokenStream::next(StreamNode* currentPos)
+
+Token TokenStream::prev()
 {
-    if (!currentPos->next)
-    {
-        if (m_scanDone)
-        {
-            return currentPos;
-        }
-        StreamNode* p = new StreamNode(nullptr, m_tail);
-        p->token = m_lexer->getNextToken();
-        m_scanDone = p->token.type == TokenType::EndOfFile;
-        m_tail->next = p;
-        m_tail = p;
-        return m_tail;
-    }
-    else
-    {
-        return currentPos->next;
-    }
+	return m_tokens[m_currentPos - 1];
+}
+
+Token& TokenStream::operator*()
+{
+	return m_tokens[m_currentPos];
+}
+
+Token* TokenStream::operator->()
+{
+	return &m_tokens[m_currentPos];
+}
+
+TokenStream& TokenStream::operator++()
+{
+	if (m_currentPos < m_tokens.size() - 1)
+	{
+		++m_currentPos;
+	}
+	return *this;
+}
+
+TokenStream TokenStream::operator++(int)
+{
+	TokenStream temp(*this);
+	++(*this);
+	return temp;
+}
+
+TokenStream& TokenStream::operator--()
+{
+	if (m_currentPos > 0)
+	{
+		--m_currentPos;
+	}
+	return *this;
+}
+
+TokenStream TokenStream::operator--(int)
+{
+	TokenStream temp(*this);
+	--(*this);
+	return temp;
 }

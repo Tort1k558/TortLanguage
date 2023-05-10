@@ -1,6 +1,6 @@
 #include "Lexer.h"
 
-Lexer::Lexer(std::string input) : m_input(input), m_currentPos(0)
+Lexer::Lexer(const std::string& input) : m_input(input), m_currentPos(0)
 {
 
 }
@@ -89,7 +89,7 @@ Token Lexer::getNumber() {
     }
     if (isFloat)
     {
-        return Token{ TokenType::FloatNumber, m_input.substr(startPos, m_currentPos - startPos) };
+        return Token{ TokenType::DoubleNumber, m_input.substr(startPos, m_currentPos - startPos) };
     }
     return Token{ TokenType::IntNumber, m_input.substr(startPos, m_currentPos - startPos) };
 }
