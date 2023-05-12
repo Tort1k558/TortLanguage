@@ -22,8 +22,10 @@ public:
 	SymbolTable()
 		:m_symbolTable(std::vector<NodeTable>()) {};
 	void addVar(const std::string& name, llvm::Value* value);
+	void addVarType(const std::string& name, llvm::Type* type);
 	llvm::Value* getValueVar(const std::string& name);
 	llvm::Value* getPtrVar(const std::string& name);
+	llvm::Type* getTypeVar(const std::string& name);
 	void extend(SymbolTable* table);
 private:
 	std::vector<NodeTable> m_symbolTable;

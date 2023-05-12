@@ -17,6 +17,7 @@ Parser::Parser(TokenStream *stream) :
 }
 void Parser::parse()
 {
+	SymbolTableManager::getInstance().setSymbolTable(m_globalSymbolTable);
 	while (m_tokenStream->type != TokenType::EndOfFile)
 	{
 		switch (m_tokenStream->type)
@@ -242,6 +243,7 @@ std::shared_ptr<BlockAST> Parser::parseBlock()
 }
 std::vector<std::pair<TokenType, std::string>> Parser::parseArgs()
 {
+	auto symbolTableFunc = SymbolTableManager::getInstance().getSymbolTable();
 	std::vector<std::pair<TokenType, std::string>> args;
 	check({ TokenType::OpenParen });
 	m_tokenStream++;
@@ -252,6 +254,7 @@ std::vector<std::pair<TokenType, std::string>> Parser::parseArgs()
 		std::string name = check({TokenType::Identifier}).value;
 		m_tokenStream++;
 		args.push_back({ type, name });
+		symbolTableFunc->addVarType(name, getType(type));
 		if (m_tokenStream->type != TokenType::CloseParen)
 		{
 			check({ TokenType::Comma });
@@ -286,24 +289,36 @@ std::shared_ptr<CallExprAST> Parser::parseCallFunc()
 }
 std::shared_ptr<ASTNode> Parser::parseFunction()
 {
+	auto prevSymbolTable = SymbolTableManager::getInstance().getSymbolTable();
+
+	auto symbolTableFunc = std::make_shared<SymbolTable>();
+	symbolTableFunc->extend(prevSymbolTable.get());
+	SymbolTableManager::getInstance().setSymbolTable(symbolTableFunc);
+
 	check({ TokenType::Def });
 	m_tokenStream++;
-	TokenType type = checkType().type;
-	m_tokenStream++;
+	TokenType retType = TokenType::Invalid;
+	if (checkType().type != TokenType::Invalid)
+	{
+		retType = checkType().type;
+		m_tokenStream++;
+	}
 	std::string funcName = check({ TokenType::Identifier }).value;
 	m_tokenStream++;
 	std::vector<std::pair<TokenType, std::string>> args = std::move(parseArgs());
 	if (m_tokenStream->type == TokenType::Semicolon)
 	{
 		m_tokenStream++;
-		auto proto = std::make_shared<ProtFunctionAST>(funcName, type, args);
-		proto->codegen(m_globalSymbolTable);
+		auto proto = std::make_shared<ProtFunctionAST>(funcName, retType, args);
+		proto->codegen();
 		return proto;
 	}
 	std::shared_ptr<BlockAST> body = parseBlock();
-	auto func = std::make_shared<FunctionAST>(funcName, type, args, std::move(body));
-	func->codegen(m_globalSymbolTable);
+	auto func = std::make_shared<FunctionAST>(funcName, retType, args, std::move(body));
+	func->codegen();
 	return func;
+
+	SymbolTableManager::getInstance().setSymbolTable(prevSymbolTable);
 }
 std::shared_ptr<ReturnAST> Parser::parseReturn()
 {
@@ -320,12 +335,6 @@ Token Parser::check(std::vector<TokenType> types)
 			return curToken;
 		}
 	}
-	std::cerr << "ERROR::PARSER::Expected Tokens:";
-	for (const auto& token : types)
-	{
-		std::cerr << g_nameTypes[static_cast<int>(token)];
-	}
-	std::cerr << std::endl;
 	return {TokenType::Invalid,};
 }
 

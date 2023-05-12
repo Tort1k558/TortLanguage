@@ -12,9 +12,13 @@
 #include"src/LLVMManager.h"
 int main() {
     std::string m_input =
-        R"(def int sum(int f,int e);
+        R"(
+        def sum(int f,int e)
+        {
+            return f + e;
+        }
         def double div(double a,double b);
-        def int main()
+        def main()
         {
             int a;
             int b; 
@@ -22,14 +26,9 @@ int main() {
             a = 25*4 / (5);
             int c = b > a;
             double c = div(5.0,10.0);
-            sum(a,b);
-            return a;
+            return 5;
         }
-        def int sum(int f,int e)
-        {
-            return f+e;
-        }
-        def double div(double a,double b)
+        def div(double a,double b)
         {
             return a/b;
         })";
