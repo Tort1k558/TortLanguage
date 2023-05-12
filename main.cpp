@@ -12,9 +12,27 @@
 #include"src/LLVMManager.h"
 int main() {
     std::string m_input =
-        "def int sum(int f,int e){return f+e;}"
-        "def int main(){int a; int b; b = 10; a = 25*4 / (5);int c = b > a; sum(a,b); return a;}"
-        "def double div(double a,double b){return a/b;}";
+        R"(def int sum(int f,int e);
+        def double div(double a,double b);
+        def int main()
+        {
+            int a;
+            int b; 
+            b = sum(5,8);
+            a = 25*4 / (5);
+            int c = b > a;
+            double c = div(5.0,10.0);
+            sum(a,b);
+            return a;
+        }
+        def int sum(int f,int e)
+        {
+            return f+e;
+        }
+        def double div(double a,double b)
+        {
+            return a/b;
+        })";
 
     auto lexer = std::make_shared<Lexer>(m_input);
     TokenStream tokenStream(std::move(lexer));

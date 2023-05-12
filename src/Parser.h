@@ -32,7 +32,7 @@ private:
 	std::shared_ptr<ASTNode> Parser::parseExpression();
 	std::shared_ptr<ASTNode> Parser::parseCompareExpr(std::shared_ptr<ASTNode> left);
 	std::vector<std::shared_ptr<VarDeclAST>> parseVarDecl();
-	std::shared_ptr<FunctionAST> parseFunction();
+	std::shared_ptr<ASTNode> parseFunction();
 	std::shared_ptr<CallExprAST> parseCallFunc();
 	std::shared_ptr<ReturnAST> parseReturn();
 	std::vector<std::pair<TokenType, std::string>> parseArgs();

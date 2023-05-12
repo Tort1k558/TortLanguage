@@ -105,7 +105,6 @@ public:
     {
         m_symbolTable->extend(symbolTable.get());
     }
-
     llvm::Value* codegen(std::shared_ptr<SymbolTable> symbolTable = nullptr) override;
 
 private:
@@ -128,6 +127,20 @@ private:
     TokenType m_retType;
     std::vector<std::pair<TokenType, std::string>> m_args;
     std::shared_ptr<BlockAST> m_body;
+};
+class ProtFunctionAST : public ASTNode {
+public:
+    ProtFunctionAST() = delete;
+    ProtFunctionAST(const std::string& name, TokenType retType,
+        std::vector<std::pair<TokenType, std::string>> args)
+        : m_name(name), m_retType(retType), m_args(args){}
+
+    llvm::Value* codegen(std::shared_ptr<SymbolTable> symbolTable = nullptr) override;
+
+private:
+    std::string m_name;
+    TokenType m_retType;
+    std::vector<std::pair<TokenType, std::string>> m_args;
 };
 
 class CallExprAST : public ASTNode {

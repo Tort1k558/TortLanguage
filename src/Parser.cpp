@@ -31,6 +31,7 @@ void Parser::parse()
 			break;
 		default:
 			std::cerr << "ERROR::PARSER::Unknown Token: " << g_nameTypes[static_cast<int>(m_tokenStream->type)] << std::endl;
+			m_tokenStream++;
 			break;
 		}
 	}
@@ -130,6 +131,10 @@ std::shared_ptr<ASTNode> Parser::parseFactor()
 	}
 	else if (m_tokenStream->type == TokenType::Identifier)
 	{
+		if (m_tokenStream.next().type == TokenType::OpenParen)
+		{
+			return parseCallFunc();
+		}
 		return parseVariable();
 	}
 	else if (m_tokenStream->type == TokenType::IntNumber || m_tokenStream->type == TokenType::DoubleNumber)
@@ -279,7 +284,7 @@ std::shared_ptr<CallExprAST> Parser::parseCallFunc()
 	m_tokenStream++;
 	return std::make_shared<CallExprAST>(nameFuncCall, std::move(callArgs));
 }
-std::shared_ptr<FunctionAST> Parser::parseFunction()
+std::shared_ptr<ASTNode> Parser::parseFunction()
 {
 	check({ TokenType::Def });
 	m_tokenStream++;
@@ -288,6 +293,13 @@ std::shared_ptr<FunctionAST> Parser::parseFunction()
 	std::string funcName = check({ TokenType::Identifier }).value;
 	m_tokenStream++;
 	std::vector<std::pair<TokenType, std::string>> args = std::move(parseArgs());
+	if (m_tokenStream->type == TokenType::Semicolon)
+	{
+		m_tokenStream++;
+		auto proto = std::make_shared<ProtFunctionAST>(funcName, type, args);
+		proto->codegen(m_globalSymbolTable);
+		return proto;
+	}
 	std::shared_ptr<BlockAST> body = parseBlock();
 	auto func = std::make_shared<FunctionAST>(funcName, type, args, std::move(body));
 	func->codegen(m_globalSymbolTable);

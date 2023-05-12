@@ -23,7 +23,6 @@ llvm::Type* getType(TokenType type)
 
 llvm::Value* VarDeclAST::codegen(std::shared_ptr<SymbolTable> symbolTable)
 {
-    //Переписать алгоритм присваивания начального значения
     LLVMManager& manager = LLVMManager::getInstance();
     std::shared_ptr<llvm::LLVMContext> context = manager.getContext();
     std::shared_ptr<llvm::IRBuilder<>> builder = manager.getBuilder();
@@ -303,9 +302,8 @@ llvm::Value* BlockAST::codegen(std::shared_ptr<SymbolTable> symbolTable) {
     }
     return lastVal;
 }
-
-llvm::Value* FunctionAST::codegen(std::shared_ptr<SymbolTable> symbolTable)
-{
+llvm::Value* ProtFunctionAST::codegen(std::shared_ptr<SymbolTable> symbolTable) {
+    
     LLVMManager& manager = LLVMManager::getInstance();
     std::shared_ptr<llvm::LLVMContext> context = manager.getContext();
     std::shared_ptr<llvm::Module> module = manager.getModule();
@@ -317,12 +315,37 @@ llvm::Value* FunctionAST::codegen(std::shared_ptr<SymbolTable> symbolTable)
     }
 
     llvm::FunctionType* funcType = llvm::FunctionType::get(getType(m_retType), argTypes, false);
+
     llvm::Function* func = llvm::Function::Create(funcType, llvm::Function::ExternalLinkage, m_name, module.get());
+
+    unsigned int i = 0;
+    for (auto& Arg : func->args())
+        Arg.setName(m_args[i].second);
+    return func;
+}
+llvm::Value* FunctionAST::codegen(std::shared_ptr<SymbolTable> symbolTable)
+{
+    LLVMManager& manager = LLVMManager::getInstance();
+    std::shared_ptr<llvm::LLVMContext> context = manager.getContext();
+    std::shared_ptr<llvm::Module> module = manager.getModule();
+    std::shared_ptr<llvm::IRBuilder<>> builder = manager.getBuilder();
+
+    std::vector<llvm::Type*> argTypes;
+    for (const auto& arg : m_args) {
+        argTypes.push_back(getType(arg.first));
+    }
+    llvm::Function* func =nullptr;
+    func = module->getFunction(m_name);
+    if (func == nullptr)
+    {
+        llvm::FunctionType* funcType = llvm::FunctionType::get(getType(m_retType), argTypes, false);
+        func = llvm::Function::Create(funcType, llvm::Function::ExternalLinkage, m_name, module.get());
+    }
 
     llvm::BasicBlock* block = llvm::BasicBlock::Create(*context, "entry", func);
     builder->SetInsertPoint(block);
-
     std::shared_ptr<SymbolTable> symbolTableFunc = std::make_shared<SymbolTable>();
+    //symbolTable->addVar(m_name, func);
     symbolTableFunc->extend(symbolTable.get());
 
     unsigned int i = 0;
@@ -336,7 +359,7 @@ llvm::Value* FunctionAST::codegen(std::shared_ptr<SymbolTable> symbolTable)
 
     m_body->extendSymbolTable(symbolTableFunc);
     m_body->codegen(symbolTableFunc);
-
+    
     if (builder->GetInsertBlock()->getTerminator() == nullptr) {
         builder->CreateRet(llvm::Constant::getNullValue(getType(m_retType)));
     }

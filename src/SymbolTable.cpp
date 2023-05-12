@@ -8,7 +8,6 @@ void SymbolTable::addVar(const std::string& name, llvm::Value* value)
 	node.type = value->getType();
 	m_symbolTable.push_back(node);
 }
-
 llvm::Value* SymbolTable::getValueVar(const std::string& name)
 {
 	LLVMManager& manager = LLVMManager::getInstance();
