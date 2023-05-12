@@ -132,6 +132,18 @@ Token Lexer::getOperator() {
     {
         return Token{ TokenType::Less, op };
     }
+    else if (op == "&&")
+    {
+        return Token{ TokenType::And, op };
+    }
+    else if (op == "||")
+    {
+        return Token{ TokenType::Or, op };
+    }
+    else if (op == "**")
+    {
+        return Token{ TokenType::Exponentiation, op };
+    }
     return Token{ TokenType::Invalid, op };
 }
 Token Lexer::getPunctuation() {
@@ -180,7 +192,7 @@ Token Lexer::getStringLiteral() {
     return Token{ TokenType::StringLiteral, m_input.substr(startPos, m_currentPos - startPos) };
 }
 bool Lexer::isOperator(char c) {
-    return c == '+' || c == '-' || c == '*' || c == '/' || c == '=' || c == '<' || c == '>';
+    return c == '+' || c == '-' || c == '*' || c == '/' || c == '=' || c == '<' || c == '>' || c == '&' || c =='|';
 }
 bool Lexer::isPunctuation(char c) {
     return c == ';' || c == ',' || c == '(' || c == ')' || c == '{' || c == '}';

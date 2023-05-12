@@ -13,20 +13,27 @@
 int main() {
     std::string m_input =
         R"(
-        def sum(int f,int e)
+        def pow(int a,int b)
         {
-            return f + e;
+            print a;
+            print b;
+            return a*b;
+        }
+        def sum(int a,int b)
+        {
+            return a+b;
         }
         def double div(double a,double b);
+
         def main()
         {
-            int a;
-            int b; 
+            int a = 10,b =5;
             b = sum(5,8);
-            a = 25*4 / (5);
+            int d = a || b;
             int c = b > a;
-            double c = div(5.0,10.0);
-            return 5;
+            a = 25**4;
+            print a;
+            return a;
         }
         def div(double a,double b)
         {

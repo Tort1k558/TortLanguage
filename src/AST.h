@@ -37,7 +37,8 @@ public:
     VarDeclAST() = delete;
     VarDeclAST(const std::string& name, std::shared_ptr<ASTNode> value,TokenType type)
         : m_name(name), m_value(std::move(value)),m_type(type) {
-        SymbolTableManager::getInstance().getSymbolTable()->addVarType(m_name, getType(type));
+        auto symbolTable = SymbolTableManager::getInstance().getSymbolTable();
+        symbolTable->addVarType(m_name, getType(type));
     }
 
     llvm::Value* codegen() override;
@@ -146,7 +147,7 @@ private:
 class FunctionAST : public ASTNode {
 public:
     FunctionAST() = delete;
-    FunctionAST(const std::string& name, TokenType retType,
+    FunctionAST(const std::string& name, llvm::Type* retType,
         std::vector<std::pair<TokenType, std::string>> args,
         std::shared_ptr<BlockAST> body)
         : m_name(name), m_retType(retType), m_args(args), m_body(std::move(body)) {}
@@ -155,7 +156,7 @@ public:
 
 private:
     std::string m_name;
-    TokenType m_retType;
+    llvm::Type* m_retType;
     std::vector<std::pair<TokenType, std::string>> m_args;
     std::shared_ptr<BlockAST> m_body;
 };
@@ -163,7 +164,7 @@ private:
 class ProtFunctionAST : public ASTNode {
 public:
     ProtFunctionAST() = delete;
-    ProtFunctionAST(const std::string& name, TokenType retType,
+    ProtFunctionAST(const std::string& name, llvm::Type* retType,
         std::vector<std::pair<TokenType, std::string>> args)
         : m_name(name), m_retType(retType), m_args(args){}
 
@@ -171,7 +172,7 @@ public:
 
 private:
     std::string m_name;
-    TokenType m_retType;
+    llvm::Type* m_retType;
     std::vector<std::pair<TokenType, std::string>> m_args;
 };
 
@@ -194,7 +195,10 @@ public:
     ReturnAST() = delete;
     ReturnAST(std::shared_ptr<ASTNode> retExpr)
         : m_retExpr(std::move(retExpr)) {
-        llvmType = m_retExpr->llvmType;
+        if (m_retExpr)
+        {
+            llvmType = m_retExpr->llvmType;
+        }
     }
     llvm::Value* codegen() override;
 private:

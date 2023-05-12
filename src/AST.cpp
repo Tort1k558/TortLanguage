@@ -16,6 +16,8 @@ llvm::Type* getType(TokenType type)
         return llvm::Type::getDoubleTy(*context);
     case TokenType::Void:
         return llvm::Type::getVoidTy(*context);
+    case TokenType::NonType:
+        return nullptr;
     default:
         break;
     }
@@ -119,7 +121,8 @@ llvm::Value* BinaryExprAST::codegen()
 {
     LLVMManager& manager = LLVMManager::getInstance();
     auto builder = manager.getBuilder();
-
+    auto context = manager.getContext();
+    auto module = manager.getModule();
     llvm::Value* lhsVal = m_lhs->codegen();
     llvm::Value* rhsVal = m_rhs->codegen();
 
@@ -243,6 +246,13 @@ llvm::Value* BinaryExprAST::codegen()
             std::cerr << "ERROR::Invalid type for binary operation " << lhsType << std::endl;
             return nullptr;
         }
+    case TokenType::And:
+        return builder->CreateAnd(lhsVal, rhsVal, "andtmp");
+    case TokenType::Or:
+        return builder->CreateOr(lhsVal, rhsVal, "ortmp");
+    case TokenType::Exponentiation:
+        //TODO
+        return builder->CreateCall(module->getFunction("pow"), {lhsVal, rhsVal});
     default:
         std::cerr << "ERROR::Invalid binary operator: " << g_nameTypes[static_cast<int>(m_op)] << std::endl;
         return nullptr;
@@ -323,6 +333,7 @@ std::shared_ptr<ASTNode> BlockAST::getReturn()
             return ret;
         }
     }
+    return nullptr;
 }
 
 llvm::Value* ProtFunctionAST::codegen() 
@@ -333,12 +344,12 @@ llvm::Value* ProtFunctionAST::codegen()
     for (const auto& arg : m_args) {
         argTypes.push_back(getType(arg.first));
     }
-    if (m_retType == TokenType::Invalid)
+    if (!m_retType)
     {
         std::cerr << "ERROR::PARSER::The function declaration cannot be specified without the return value type" << std::endl;
         return nullptr;
     }
-    llvm::FunctionType* funcType = llvm::FunctionType::get(getType(m_retType), argTypes, false);
+    llvm::FunctionType* funcType = llvm::FunctionType::get(m_retType, argTypes, false);
     llvm::Function* func = llvm::Function::Create(funcType, llvm::Function::ExternalLinkage, m_name, module.get());
 
     unsigned int i = 0;
@@ -364,22 +375,34 @@ llvm::Value* FunctionAST::codegen()
     if (func == nullptr)
     {
         llvm::Type* retType;
-        if (m_retType == TokenType::Invalid)
+        if (!m_retType)
         {
-            retType = m_body->getReturn()->llvmType;
+            auto retAST = m_body->getReturn();
+            if (retAST)
+            {
+                if (retAST->llvmType)
+                {
+                    m_retType = retAST->llvmType;
+                }
+                else
+                {
+                    m_retType = llvm::Type::getVoidTy(*context);
+                }
+            }
+            else
+            {
+                m_retType = llvm::Type::getVoidTy(*context);
+            }
         }
-        else
-        {
-            retType = getType(m_retType);
-        }
-        llvm::FunctionType* funcType = llvm::FunctionType::get(retType, argTypes, false);
+        llvm::FunctionType* funcType = llvm::FunctionType::get(m_retType, argTypes, false);
         func = llvm::Function::Create(funcType, llvm::Function::ExternalLinkage, m_name, module.get());
     }
 
     llvm::BasicBlock* block = llvm::BasicBlock::Create(*context, "entry", func);
     builder->SetInsertPoint(block);
     unsigned int i = 0;
-    for (auto& arg : func->args()) {
+    for (auto& arg : func->args())
+    {
         arg.setName("arg"+std::to_string(i));
         std::shared_ptr<VarDeclAST> var = std::make_shared<VarDeclAST>(m_args[i].second, std::make_shared<LLVMValueAST>(&arg), m_args[i].first);
         var->codegen();
@@ -389,8 +412,16 @@ llvm::Value* FunctionAST::codegen()
     m_body->extendSymbolTable(symbolTableFunc);
     m_body->codegen();
     
-    if (builder->GetInsertBlock()->getTerminator() == nullptr) {
-        builder->CreateRet(llvm::Constant::getNullValue(getType(m_retType)));
+    if (builder->GetInsertBlock()->getTerminator() == nullptr) 
+    {
+        if (m_retType->isVoidTy())
+        {
+            builder->CreateRetVoid();
+        }
+        else
+        {
+            builder->CreateRet(llvm::Constant::getNullValue(m_retType));
+        }
     }
     return func;
 }
