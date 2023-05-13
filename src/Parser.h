@@ -11,7 +11,7 @@
 class Parser
 {
 public:
-	Parser(TokenStream *stream);
+	Parser(TokenStream stream);
 	void parse();
 private:
 	TokenStream m_tokenStream;

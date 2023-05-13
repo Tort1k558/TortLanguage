@@ -5,8 +5,8 @@
 #include<iostream>
 
 using namespace llvm;
-Parser::Parser(TokenStream *stream) :
-	m_tokenStream(*stream),
+Parser::Parser(TokenStream stream) :
+	m_tokenStream(stream),
 	m_globalSymbolTable(std::make_shared<SymbolTable>())
 {
 	parse();
