@@ -3,8 +3,6 @@
 #include<filesystem>
 #include"LLVMManager.h"
 
-
-
 #include <llvm/Target/TargetMachine.h>
 #include <llvm/Target/TargetOptions.h>
 #include <llvm/MC/TargetRegistry.h>
@@ -17,7 +15,8 @@
 #include <llvm/TargetParser/Host.h>
 #include <llvm/Linker/Linker.h>
 
-Compiler::Compiler(const std::string& pathToInputFile)
+Compiler::Compiler(const std::string& pathToInputFile, OptimizationLevel optLevel = OptimizationLevel::O0)
+	: m_optLevel(optLevel)
 {
 	std::filesystem::path filePath(pathToInputFile);
 	m_fileName = filePath.filename().stem().string();
@@ -42,6 +41,25 @@ void Compiler::compile()
 
 	writeFile(textTokens, m_directoryInputFile + "\\" + m_fileName + ".tk");
 	
+	switch (m_optLevel)
+	{
+	case OptimizationLevel::O0:
+		optimizeModule(llvm::OptimizationLevel::O0);
+		break;
+	case OptimizationLevel::O1:
+		optimizeModule(llvm::OptimizationLevel::O1);
+		break;
+	case OptimizationLevel::O2:
+		optimizeModule(llvm::OptimizationLevel::O2);
+		break;
+	case OptimizationLevel::O3:
+		optimizeModule(llvm::OptimizationLevel::O3);
+		break;
+	default:
+		break;
+	}
+
+	//initilize targetMachine
 	LLVMManager& manager = LLVMManager::getInstance();
 	auto module = manager.getModule();
 
@@ -51,12 +69,32 @@ void Compiler::compile()
 		return;
 	}
 	
-	
-	optimizeModule(llvm::OptimizationLevel::O0);
-	
+	llvm::InitializeAllTargetInfos();
+	llvm::InitializeAllTargets();
+	llvm::InitializeAllTargetMCs();
+	llvm::InitializeAllAsmParsers();
+	llvm::InitializeAllAsmPrinters();
+
+
+	std::string targetTriple = llvm::sys::getDefaultTargetTriple();
+	std::string error;
+	const llvm::Target* target = llvm::TargetRegistry::lookupTarget(targetTriple, error);
+	if (!target) {
+		std::cerr << error << std::endl;
+		return;
+	}
+	llvm::TargetOptions targetOptions;
+	std::optional<llvm::Reloc::Model> relocModel;
+	llvm::TargetMachine* targetMachine = target->createTargetMachine(targetTriple, llvm::sys::getHostCPUName().str(), "", targetOptions, relocModel);
+	if (!targetMachine) {
+		std::cerr << "ERROR::COMPILER::Failed to create target machine" << std::endl;
+		return;
+	}
+	module->setDataLayout(targetMachine->createDataLayout());
+
 	writeLLVMIRToFile();
-	generateAsmFile();
-	generateObjFile();
+	generateAsmFile(targetMachine);
+	generateObjFile(targetMachine);
 	generateExeFile();
 }
 
@@ -99,33 +137,11 @@ void Compiler::optimizeModule(llvm::OptimizationLevel optimize)
 	llvm::ModulePassManager MPM = PB.buildPerModuleDefaultPipeline(optimize);
 	MPM.run(*module, MAM);
 }
-void Compiler::generateAsmFile()
+void Compiler::generateAsmFile(llvm::TargetMachine* targetMachine)
 {
 	LLVMManager& manager = LLVMManager::getInstance();
 	auto module = manager.getModule();
 
-	llvm::InitializeAllTargetInfos();
-	llvm::InitializeAllTargets();
-	llvm::InitializeAllTargetMCs();
-	llvm::InitializeAllAsmParsers();
-	llvm::InitializeAllAsmPrinters();
-
-
-	std::string targetTriple = llvm::sys::getDefaultTargetTriple();
-	std::string error;
-	const llvm::Target* target = llvm::TargetRegistry::lookupTarget(targetTriple, error);
-	if (!target) {
-		std::cerr << error;
-		return;
-	}
-	llvm::TargetOptions targetOptions;
-	std::optional<llvm::Reloc::Model> relocModel;
-	llvm::TargetMachine* targetMachine = target->createTargetMachine(targetTriple, llvm::sys::getHostCPUName().str(), "", targetOptions, relocModel);
-	if (!targetMachine) {
-		std::cerr << "ERROR::COMPILER::Failed to create target machine" << std::endl;
-		return;
-	}
-	module->setDataLayout(targetMachine->createDataLayout());
 	auto Filename = m_directoryInputFile + "\\" + m_fileName + ".s";
 	std::error_code EC;
 	llvm::raw_fd_ostream dest(Filename, EC, llvm::sys::fs::OF_None);
@@ -145,32 +161,11 @@ void Compiler::generateAsmFile()
 	dest.flush();
 	llvm::outs() << "Assembler file generated: " << Filename << "\n";
 }
-void Compiler::generateObjFile()
+void Compiler::generateObjFile(llvm::TargetMachine* targetMachine)
 {
 	LLVMManager& manager = LLVMManager::getInstance();
 	auto module = manager.getModule();
 
-	llvm::InitializeAllTargetInfos();
-	llvm::InitializeAllTargets();
-	llvm::InitializeAllTargetMCs();
-	llvm::InitializeAllAsmParsers();
-	llvm::InitializeAllAsmPrinters();
-
-	std::string targetTriple = llvm::sys::getDefaultTargetTriple();
-	std::string error;
-	const llvm::Target* target = llvm::TargetRegistry::lookupTarget(targetTriple, error);
-	if (!target) {
-		std::cerr << error;
-		return;
-	}
-	llvm::TargetOptions targetOptions;
-	std::optional<llvm::Reloc::Model> relocModel;
-	llvm::TargetMachine* targetMachine = target->createTargetMachine(targetTriple, llvm::sys::getHostCPUName().str(), "", targetOptions, relocModel);
-	if (!targetMachine) {
-		std::cerr << "ERROR::COMPILER::Failed to create target machine" << std::endl;
-		return;
-	}
-	module->setDataLayout(targetMachine->createDataLayout());
 	auto Filename = m_directoryInputFile + "\\" + m_fileName + ".obj";
 	std::error_code EC;
 	llvm::raw_fd_ostream dest(Filename, EC, llvm::sys::fs::OF_None);
@@ -226,7 +221,7 @@ void Compiler::writeFile(std::string text,std::string pathTofile)
 	std::ofstream file(pathTofile, std::ios::out | std::ios::trunc);
 	if (!file.is_open())
 	{
-		std::cerr << "Error opening output file: " << pathTofile << std::endl;
+		std::cerr << "ERROR::COMPILER::Error opening output file: " << pathTofile << std::endl;
 		return;
 	}
 	file << text;
