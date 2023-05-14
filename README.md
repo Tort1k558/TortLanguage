@@ -1,11 +1,16 @@
 # TortLanguage
-## What is it?
 
+## What is it?
 TortLanguage is a project to create my programming language.
 In this project, a compiler is written that uses the LLVM backend.
 
-## Features
-Upon completion of its work, the program outputs the LLVM IR code to the console, which you can later compile using clang or llc.
+## Result of work
+Upon completion of this work, the compiler generates files such as:
+- Token files - It describes each type of word and its affiliation
+- Assembler file - Generated assembler code
+- Object file, Which is then linked to an executable file using the lld linker
+
+
 ## Example
         def sum(int a,int b)
         {
@@ -94,9 +99,14 @@ Output:
 	140
 	2.500000
 	
+## Features
+- Automatic detection of the type of the returned function
+- Ability to specify the optimization level O[0-3]
+
+## Support
+- Windows
 
 ## TODO
 - Add branches
 - Add loops
 - add types: str,bool
-- implement pipeline compilation
