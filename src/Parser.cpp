@@ -245,11 +245,13 @@ std::vector<std::shared_ptr<ASTNode>> Parser::parseStatement()
 		break;
 	}
 }
+
 std::shared_ptr<ASTNode> Parser::parsePrint()
 {
 	m_tokenStream++;
 	return std::make_shared<ConsoleOutputExprAST>(parseExpression());
 }
+
 std::vector<std::shared_ptr<ASTNode>> Parser::parseVarDecl()
 {
 	std::vector<std::shared_ptr<ASTNode>> vars;
@@ -284,6 +286,7 @@ std::vector<std::shared_ptr<ASTNode>> Parser::parseVarDecl()
 	}
 	return vars;
 }
+
 std::shared_ptr<BlockAST> Parser::parseBlock()
 {
 	check({ TokenType::BlockStart });
@@ -304,6 +307,7 @@ std::shared_ptr<BlockAST> Parser::parseBlock()
 	m_tokenStream++;
 	return block;
 }
+
 std::vector<std::pair<TokenType, std::string>> Parser::parseArgs()
 {
 	auto symbolTableFunc = SymbolTableManager::getInstance().getSymbolTable();
@@ -329,6 +333,7 @@ std::vector<std::pair<TokenType, std::string>> Parser::parseArgs()
 	return args;
 	
 }
+
 std::shared_ptr<CallExprAST> Parser::parseCallFunc()
 {
 	std::string nameFuncCall = check({TokenType::Identifier}).value;
@@ -350,6 +355,7 @@ std::shared_ptr<CallExprAST> Parser::parseCallFunc()
 	m_tokenStream++;
 	return std::make_shared<CallExprAST>(nameFuncCall, std::move(callArgs));
 }
+
 std::shared_ptr<ASTNode> Parser::parseFunction()
 {
 	auto prevSymbolTable = SymbolTableManager::getInstance().getSymbolTable();
@@ -385,6 +391,7 @@ std::shared_ptr<ASTNode> Parser::parseFunction()
 	return func;
 
 }
+
 std::shared_ptr<ReturnAST> Parser::parseReturn()
 {
 	m_tokenStream++;
@@ -394,6 +401,7 @@ std::shared_ptr<ReturnAST> Parser::parseReturn()
 	}
 	return std::make_shared<ReturnAST>(parseExpression());
 }
+
 Token Parser::check(std::vector<TokenType> types)
 {
 	Token curToken = *m_tokenStream;
@@ -404,7 +412,7 @@ Token Parser::check(std::vector<TokenType> types)
 			return curToken;
 		}
 	}
-	return {TokenType::Invalid,};
+	return {TokenType::Invalid};
 }
 
 Token Parser::checkType()

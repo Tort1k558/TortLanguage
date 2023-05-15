@@ -109,4 +109,5 @@ Output:
 ## TODO
 - Add branches
 - Add loops
-- add types: str,bool
+- Add types: str,bool
+- Add modularity

@@ -16,7 +16,7 @@
 // &&,||,
 //Не правильно реализовал
 int main() {
-    Compiler compiler("C:\\Users\\Tort1k\\Desktop\\Tort\\example\\main.tt");
+    Compiler compiler("C:/Users/Tort1k/Desktop/Tort/example/main.tt");
     compiler.compile();
 
 }

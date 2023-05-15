@@ -24,12 +24,14 @@ private:
 	std::string m_directoryInputFile;
 	std::string m_pathToOutputFile;
 	std::string m_fileName;
+	std::string m_buildDirectory;
+	std::shared_ptr<llvm::TargetMachine> m_targetMachine;
 	OptimizationLevel m_optLevel;
 	std::string readFile();
 	void writeFile(std::string text, std::string pathTofile);
-	void writeLLVMIRToFile();
-	void generateObjFile(llvm::TargetMachine* targetMachine);
-	void generateAsmFile(llvm::TargetMachine* targetMachine);
+	void generateIRFile();
+	void generateObjFile();
+	void generateAsmFile();
 	void generateExeFile();
 	void optimizeModule(llvm::OptimizationLevel optimize);
 };

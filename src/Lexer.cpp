@@ -132,6 +132,14 @@ Token Lexer::getOperator() {
     {
         return Token{ TokenType::Less, op };
     }
+    else if (op == "&")
+    {
+        return Token{ TokenType::BitAnd, op };
+    }
+    else if (op == "|")
+    {
+        return Token{ TokenType::BitOr, op };
+    }
     else if (op == "&&")
     {
         return Token{ TokenType::And, op };

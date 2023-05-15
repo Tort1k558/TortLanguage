@@ -1,7 +1,6 @@
 #include"Compiler.h"
 #include<fstream>
 #include<filesystem>
-#include"LLVMManager.h"
 
 #include <llvm/Target/TargetMachine.h>
 #include <llvm/Target/TargetOptions.h>
@@ -14,23 +13,33 @@
 #include <llvm/LinkAllPasses.h>
 #include <llvm/TargetParser/Host.h>
 #include <llvm/Linker/Linker.h>
+#include <llvm/BinaryFormat/ELF.h>
+#include <lld/Common/LLVM.h>
+#include <lld/Common/Driver.h>
 
-Compiler::Compiler(const std::string& pathToInputFile, OptimizationLevel optLevel = OptimizationLevel::O0)
+#include"LLVMManager.h"
+
+Compiler::Compiler(const std::string& pathToInputFile, OptimizationLevel optLevel)
 	: m_optLevel(optLevel)
 {
 	std::filesystem::path filePath(pathToInputFile);
 	m_fileName = filePath.filename().stem().string();
 	m_directoryInputFile = filePath.parent_path().string();
+	m_buildDirectory = m_directoryInputFile + "/build";
+	std::filesystem::create_directory(m_buildDirectory);
 }
 void Compiler::compile()
 {
+
 	std::string code = readFile();
 
+	//generate IR code
 	auto lexer = std::make_shared<Lexer>(code);
 	TokenStream tokenStream(std::move(lexer));
 	Parser parser(tokenStream);
 	parser.parse();
 
+	//Write tokens to file
 	std::string textTokens;
 	while(tokenStream->type != TokenType::EndOfFile)
 	{
@@ -38,9 +47,9 @@ void Compiler::compile()
 		textTokens += "TOKEN: [" + token.value + "] Type: " + g_nameTypes[static_cast<int>(token.type)] + '\n';
 		tokenStream++;
 	}
-
-	writeFile(textTokens, m_directoryInputFile + "\\" + m_fileName + ".tk");
+	writeFile(textTokens, m_buildDirectory + "/" + m_fileName + ".tk");
 	
+	//optimize
 	switch (m_optLevel)
 	{
 	case OptimizationLevel::O0:
@@ -59,7 +68,6 @@ void Compiler::compile()
 		break;
 	}
 
-	//initilize targetMachine
 	LLVMManager& manager = LLVMManager::getInstance();
 	auto module = manager.getModule();
 
@@ -69,12 +77,12 @@ void Compiler::compile()
 		return;
 	}
 	
+	//initilize targetMachine
 	llvm::InitializeAllTargetInfos();
 	llvm::InitializeAllTargets();
 	llvm::InitializeAllTargetMCs();
 	llvm::InitializeAllAsmParsers();
 	llvm::InitializeAllAsmPrinters();
-
 
 	std::string targetTriple = llvm::sys::getDefaultTargetTriple();
 	std::string error;
@@ -85,34 +93,44 @@ void Compiler::compile()
 	}
 	llvm::TargetOptions targetOptions;
 	std::optional<llvm::Reloc::Model> relocModel;
-	llvm::TargetMachine* targetMachine = target->createTargetMachine(targetTriple, llvm::sys::getHostCPUName().str(), "", targetOptions, relocModel);
-	if (!targetMachine) {
+	m_targetMachine = std::shared_ptr<llvm::TargetMachine>(target->createTargetMachine(targetTriple, llvm::sys::getHostCPUName().str(), "", targetOptions, relocModel));
+	if (!m_targetMachine) {
 		std::cerr << "ERROR::COMPILER::Failed to create target machine" << std::endl;
 		return;
 	}
-	module->setDataLayout(targetMachine->createDataLayout());
+	module->setDataLayout(m_targetMachine->createDataLayout());
 
-	writeLLVMIRToFile();
-	generateAsmFile(targetMachine);
-	generateObjFile(targetMachine);
+	generateIRFile();
+	generateAsmFile();
+	generateObjFile();
 	generateExeFile();
+
 }
 
 void Compiler::generateExeFile()
 {
-	std::string objFilePath = m_directoryInputFile + "\\" + m_fileName + ".obj";
-	std::string exeFilePath = m_directoryInputFile + "\\" + m_fileName + ".exe";
+	std::string pathToObjFile = m_buildDirectory + "/" + m_fileName + ".o";
+	std::string pathToExeFile = m_buildDirectory + "/" + m_fileName + ".exe";
 
-	std::string command = "lld-link " + objFilePath + " -out:" + exeFilePath + " /DEFAULTLIB:libcmt";
+	llvm::raw_ostream& stdoutOS = llvm::outs();
+	llvm::raw_ostream& stderrOS = llvm::errs();
+	std::string outFile = "/out:" + pathToExeFile;
+	const char* linkArgs[] = {
+	  "lld::coff::link",
+	  outFile.c_str(),
+	  "/defaultlib:libcmt",
+	  "-libpath:libs/windows/x64",
+	  pathToObjFile.c_str()
+	};
 
-	int result = std::system(command.c_str());
-	if (result != 0)
-	{
-		std::cerr << "ERROR::COMPILER::Failed to create executable file: " << exeFilePath << std::endl;
-		return;
+	bool exitEarly = false;
+	bool disableOutput = false;
+	bool success = lld::coff::link(linkArgs, stdoutOS, stderrOS, exitEarly, disableOutput);
+
+	if (!success) {
+		std::cerr << "ERROR::LINKER::Linking failed" << std::endl;
 	}
-
-	std::cout << "Executable file generated: " << exeFilePath << std::endl;
+	std::cout << "Executable file generated: "<< pathToExeFile << std::endl;
 }
 void Compiler::optimizeModule(llvm::OptimizationLevel optimize)
 {
@@ -137,62 +155,63 @@ void Compiler::optimizeModule(llvm::OptimizationLevel optimize)
 	llvm::ModulePassManager MPM = PB.buildPerModuleDefaultPipeline(optimize);
 	MPM.run(*module, MAM);
 }
-void Compiler::generateAsmFile(llvm::TargetMachine* targetMachine)
+
+void Compiler::generateAsmFile()
 {
 	LLVMManager& manager = LLVMManager::getInstance();
 	auto module = manager.getModule();
 
-	auto Filename = m_directoryInputFile + "\\" + m_fileName + ".s";
+	std::string pathToAsmFile = m_buildDirectory + "/" + m_fileName + ".s";
 	std::error_code EC;
-	llvm::raw_fd_ostream dest(Filename, EC, llvm::sys::fs::OF_None);
+	llvm::raw_fd_ostream dest(pathToAsmFile, EC, llvm::sys::fs::OF_None);
 
 	if (EC) {
 		std::cerr << "ERROR::COMPILER::Could not open file: " << EC.message() << std::endl;
 		return;
 	}
+
 	llvm::legacy::PassManager pass;
-	auto FileType = llvm::CGFT_AssemblyFile;
-	if (targetMachine->addPassesToEmitFile(pass, dest, nullptr, FileType)) {
+	if (m_targetMachine->addPassesToEmitFile(pass, dest, nullptr, llvm::CGFT_AssemblyFile)) {
 		std::cerr << "ERROR::COMPILER::TheTargetMachine can't emit a file of this type" << std::endl;
 		return;
 	}
 	
 	pass.run(*module);
 	dest.flush();
-	llvm::outs() << "Assembler file generated: " << Filename << "\n";
+	std::cout << "Assembler file generated: " << pathToAsmFile << std::endl;
 }
-void Compiler::generateObjFile(llvm::TargetMachine* targetMachine)
+void Compiler::generateObjFile()
 {
 	LLVMManager& manager = LLVMManager::getInstance();
 	auto module = manager.getModule();
-
-	auto Filename = m_directoryInputFile + "\\" + m_fileName + ".obj";
+	
+	std::string pathToObjFile = m_buildDirectory + "/" + m_fileName + ".o";
 	std::error_code EC;
-	llvm::raw_fd_ostream dest(Filename, EC, llvm::sys::fs::OF_None);
+	llvm::raw_fd_ostream dest(pathToObjFile, EC, llvm::sys::fs::OF_None);
 
 	if (EC) {
 		std::cerr << "ERROR::COMPILER::Could not open file: " << EC.message() << std::endl;
 		return;
 	}
-	llvm::legacy::PassManager pass;
-	auto FileType = llvm::CGFT_ObjectFile;
 
-	if (targetMachine->addPassesToEmitFile(pass, dest, nullptr, FileType)) {
+	llvm::legacy::PassManager pass;
+	if (m_targetMachine->addPassesToEmitFile(pass, dest, nullptr, llvm::CGFT_ObjectFile)) {
 		std::cerr << "ERROR::COMPILER::TheTargetMachine can't emit a file of this type" << std::endl;
 		return;
 	}
 
 	pass.run(*module);
 	dest.flush();
-	llvm::outs() << "Object file generated: " << Filename << "\n";
+	std::cout << "Object file generated: " << pathToObjFile << std::endl;
 }
 
 std::string Compiler::readFile()
 {
-	std::ifstream file(m_directoryInputFile+"\\"+ m_fileName + ".tt");
+	std::string filename = m_directoryInputFile + "/" + m_fileName + ".tt";
+	std::ifstream file(filename);
 	if (!file.is_open())
 	{
-		std::cerr << "Error opening input file: " << m_directoryInputFile + "\\" + m_fileName + ".tt" << std::endl;
+		std::cerr << "Error opening input file: " << filename << std::endl;
 		return "";
 	}
 	std::string code;
@@ -204,18 +223,24 @@ std::string Compiler::readFile()
 	file.close();
 	return code;
 }
-void Compiler::writeLLVMIRToFile() {
+
+void Compiler::generateIRFile() {
+	std::string pathToIRFile = m_buildDirectory + "/" + m_fileName + ".ll";
+
 	std::error_code errorCode;
-	llvm::raw_fd_ostream output(m_directoryInputFile + "\\" + m_fileName +".ll", errorCode);
-	LLVMManager& manager = LLVMManager::getInstance();
-	auto module = manager.getModule();
+	llvm::raw_fd_ostream output(pathToIRFile, errorCode);
 	if (errorCode) {
 		std::cerr << "Error opening output file: " << errorCode.message() << std::endl;
 		return;
 	}
+	LLVMManager& manager = LLVMManager::getInstance();
+	auto module = manager.getModule();
+
 	module->print(output, nullptr);
 	output.close();
+	std::cout << "IR file generated: " << pathToIRFile << std::endl;
 }
+
 void Compiler::writeFile(std::string text,std::string pathTofile)
 {
 	std::ofstream file(pathTofile, std::ios::out | std::ios::trunc);

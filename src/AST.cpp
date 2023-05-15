@@ -53,7 +53,7 @@ llvm::Value* VarDeclAST::codegen()
         }
         else
         {
-            std::cerr << "ERROR::This type is not supported yet" << std::endl;
+            std::cerr << "ERROR::AST::This type is not supported yet" << std::endl;
         }
     }
     else
@@ -85,7 +85,7 @@ llvm::Value* AssignExprAST::codegen()
 
     llvm::Value* var = symbolTable->getPtrVar(m_varName);
     if (!var) {
-        std::cerr << "ERROR::Var is not defined" << std::endl;
+        std::cerr << "ERROR::AST::Var is not defined" << std::endl;
     }
     llvm::Value* val = m_val->codegen();
     if (!val) {
@@ -143,7 +143,7 @@ llvm::Value* BinaryExprAST::codegen()
         }
         else
         {
-            std::cerr << "ERROR::Invalid type for binary operation " << lhsType <<" and "<<rhsType <<std::endl;
+            std::cerr << "ERROR::AST::Invalid type for binary operation " << lhsType <<" and "<<rhsType <<std::endl;
             return nullptr;
         }
     }
@@ -159,7 +159,7 @@ llvm::Value* BinaryExprAST::codegen()
         }
         else
         {
-            std::cerr << "ERROR::Invalid type for binary operation " << lhsType << std::endl;
+            std::cerr << "ERROR::AST::Invalid type for binary operation " << lhsType << std::endl;
             return nullptr;
         }
     case TokenType::Minus:
@@ -173,7 +173,7 @@ llvm::Value* BinaryExprAST::codegen()
         }
         else
         {
-            std::cerr << "ERROR::Invalid type for binary operation " << lhsType << std::endl;
+            std::cerr << "ERROR::AST::Invalid type for binary operation " << lhsType << std::endl;
             return nullptr;
         }
     case TokenType::Mul:
@@ -187,7 +187,7 @@ llvm::Value* BinaryExprAST::codegen()
         }
         else
         {
-            std::cerr << "ERROR::Invalid type for binary operation " << lhsType << std::endl;
+            std::cerr << "ERROR::AST::Invalid type for binary operation " << lhsType << std::endl;
             return nullptr;
         }
     case TokenType::Div:
@@ -201,7 +201,7 @@ llvm::Value* BinaryExprAST::codegen()
         }
         else
         {
-            std::cerr << "ERROR::Invalid type for binary operation " << lhsType << std::endl;
+            std::cerr << "ERROR::AST::Invalid type for binary operation " << lhsType << std::endl;
             return nullptr;
         }
     case TokenType::Less:
@@ -215,7 +215,7 @@ llvm::Value* BinaryExprAST::codegen()
         }
         else
         {
-            std::cerr << "ERROR::Invalid type for binary operation " << lhsType << std::endl;
+            std::cerr << "ERROR::AST::Invalid type for binary operation " << lhsType << std::endl;
             return nullptr;
         }
     case TokenType::Greater:
@@ -229,7 +229,7 @@ llvm::Value* BinaryExprAST::codegen()
         }
         else
         {
-            std::cerr << "ERROR::Invalid type for binary operation " << lhsType << std::endl;
+            std::cerr << "ERROR::AST::Invalid type for binary operation " << lhsType << std::endl;
             return nullptr;
         }
     case TokenType::Equal:
@@ -243,18 +243,18 @@ llvm::Value* BinaryExprAST::codegen()
         }
         else
         {
-            std::cerr << "ERROR::Invalid type for binary operation " << lhsType << std::endl;
+            std::cerr << "ERROR::AST::Invalid type for binary operation " << lhsType << std::endl;
             return nullptr;
         }
-    case TokenType::And:
+    case TokenType::BitAnd:
         return builder->CreateAnd(lhsVal, rhsVal, "andtmp");
-    case TokenType::Or:
+    case TokenType::BitOr:
         return builder->CreateOr(lhsVal, rhsVal, "ortmp");
     case TokenType::Exponentiation:
         //TODO
         return builder->CreateCall(module->getFunction("pow"), {lhsVal, rhsVal});
     default:
-        std::cerr << "ERROR::Invalid binary operator: " << g_nameTypes[static_cast<int>(m_op)] << std::endl;
+        std::cerr << "ERROR::AST::Invalid binary operator: " << g_nameTypes[static_cast<int>(m_op)] << std::endl;
         return nullptr;
     }
 }
@@ -346,7 +346,7 @@ llvm::Value* ProtFunctionAST::codegen()
     }
     if (!m_retType)
     {
-        std::cerr << "ERROR::PARSER::The function declaration cannot be specified without the return value type" << std::endl;
+        std::cerr << "ERROR::AST::The function declaration cannot be specified without the return value type" << std::endl;
         return nullptr;
     }
     llvm::FunctionType* funcType = llvm::FunctionType::get(m_retType, argTypes, false);
