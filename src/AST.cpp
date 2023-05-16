@@ -133,19 +133,7 @@ llvm::Value* BinaryExprAST::codegen()
     llvm::Type* rhsType = rhsVal->getType();
     if (lhsType != rhsType)
     {
-        if (lhsType->isDoubleTy() && rhsType->isIntegerTy())
-        {
-            rhsVal = builder->CreateSIToFP(rhsVal, lhsType, "sitofptmp");
-        }
-        else if(lhsType->isIntegerTy() && rhsType->isDoubleTy())
-        {
-            rhsVal = builder->CreateFPToSI(rhsVal, lhsType, "fptositmp");
-        }
-        else
-        {
-            std::cerr << "ERROR::AST::Invalid type for binary operation " << lhsType <<" and "<<rhsType <<std::endl;
-            return nullptr;
-        }
+        rhsVal = std::make_shared<CastAST>(rhsVal,lhsType)->codegen();
     }
     switch (m_op) {
     case TokenType::Plus:
@@ -247,12 +235,12 @@ llvm::Value* BinaryExprAST::codegen()
             return nullptr;
         }
     case TokenType::BitAnd:
-        return builder->CreateAnd(lhsVal, rhsVal, "andtmp");
+        return builder->CreateAnd(lhsVal, rhsVal, "bitandtmp");
     case TokenType::BitOr:
-        return builder->CreateOr(lhsVal, rhsVal, "ortmp");
+        return builder->CreateOr(lhsVal, rhsVal, "bitortmp");
     case TokenType::Exponentiation:
         //TODO
-        return builder->CreateCall(module->getFunction("pow"), {lhsVal, rhsVal});
+        //return builder->CreateCall(module->getFunction("pow"), {lhsVal, rhsVal});
     default:
         std::cerr << "ERROR::AST::Invalid binary operator: " << g_nameTypes[static_cast<int>(m_op)] << std::endl;
         return nullptr;
@@ -431,6 +419,7 @@ llvm::Value* CallExprAST::codegen()
     LLVMManager& manager = LLVMManager::getInstance();
     auto module = manager.getModule();
     auto builder = manager.getBuilder();
+
     auto symbolTable = SymbolTableManager::getInstance().getSymbolTable();
 
     llvm::Function* func = module->getFunction(m_name);
@@ -449,9 +438,85 @@ llvm::Value* CallExprAST::codegen()
 llvm::Value* ReturnAST::codegen()
 {
     LLVMManager& manager = LLVMManager::getInstance();
-    std::shared_ptr<llvm::IRBuilder<>> builder = manager.getBuilder();
+    auto builder = manager.getBuilder();
 
     llvm::Value* retVal = m_retExpr->codegen();
     builder->CreateRet(retVal);
     return retVal;
+}
+
+llvm::Value* IfAST::codegen()
+{
+    LLVMManager& manager = LLVMManager::getInstance();
+    auto builder = manager.getBuilder();
+    auto context = manager.getContext();
+
+    llvm::Value* condValue = m_ifExpr->codegen();
+    if (condValue->getType() != builder->getInt1Ty())
+    {
+        condValue = std::make_shared<CastAST>(condValue, builder->getInt1Ty())->codegen();
+    }
+
+    llvm::Function* function = builder->GetInsertBlock()->getParent();
+
+    llvm::BasicBlock* ifBlock = llvm::BasicBlock::Create(*context, "ifblock", function);
+    llvm::BasicBlock* elseBlock = nullptr;
+    llvm::BasicBlock* mergeBlock = llvm::BasicBlock::Create(*context, "mergeblock", function);
+    if (m_elseBlock)
+    {
+        elseBlock = llvm::BasicBlock::Create(*context, "elseblock", function);
+        builder->CreateCondBr(condValue, ifBlock, elseBlock);
+    }
+    else
+    {
+        builder->CreateCondBr(condValue, ifBlock, mergeBlock);
+    }
+    
+
+    builder->SetInsertPoint(ifBlock);
+    llvm::Value* ifValue = m_ifBlock->codegen();
+    builder->CreateBr(mergeBlock);
+
+    //ifBlock->insertInto(function);
+    ifBlock = builder->GetInsertBlock();
+
+    llvm::Value* elseValue = nullptr;
+    if (m_elseBlock)
+    {
+        //elseBlock->insertInto(function);
+
+        builder->SetInsertPoint(elseBlock);
+        elseValue = m_elseBlock->codegen();
+        builder->CreateBr(mergeBlock);
+
+        elseBlock = builder->GetInsertBlock(); 
+
+    }
+    //mergeBlock->insertInto(function);
+    builder->SetInsertPoint(mergeBlock);
+    
+    return ifValue;
+}
+llvm::Value* CastAST::codegen()
+{
+    LLVMManager& manager = LLVMManager::getInstance();
+    auto builder = manager.getBuilder();
+
+    if (m_type->isDoubleTy() && m_value->getType()->isIntegerTy())
+    {
+        return builder->CreateSIToFP(m_value, m_type, "sitofptmp");
+    }
+    else if (m_type->isIntegerTy() && m_value->getType()->isDoubleTy())
+    {
+        return builder->CreateFPToSI(m_value, m_type, "sitofptmp");
+    }
+    else if (m_type->isIntegerTy(1) && m_value->getType()->isIntegerTy())
+    {
+        return builder->CreateICmpNE(m_value, builder->getInt32(0), "i32toi1tmp");
+
+    }
+    else
+    {
+        std::cerr << "ERROR::AST::Invalid Cast type!" << std::endl;
+    }
 }

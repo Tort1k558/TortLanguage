@@ -58,7 +58,7 @@ const std::vector<std::string> g_nameTypes = {
     "Greater",
     "Not",
     "And",
-    "Or"
+    "Or",
     "BitAnd",
     "BitOr",
     "Comma",

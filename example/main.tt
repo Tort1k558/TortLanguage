@@ -7,13 +7,16 @@ def double div(double a,double b);
 
 def main()
     {
-        int a = 10,b =5;
-        print a;
-        print b;
-        b = sum(5,8);
-        print a + b * 10;
-        double c = div(5.0,2.0);
-        print c;
+        int a = 2,b = 1;
+		int c = a | b + 4;
+        if 0
+		{
+			print a;
+		}
+		else
+		{
+			print b;
+		}
         return c;
     }
 

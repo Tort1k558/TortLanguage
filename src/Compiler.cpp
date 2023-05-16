@@ -38,7 +38,9 @@ void Compiler::compile()
 	TokenStream tokenStream(std::move(lexer));
 	Parser parser(tokenStream);
 	parser.parse();
-
+	LLVMManager& manager = LLVMManager::getInstance();
+	auto module = manager.getModule();
+	module->print(llvm::outs(), nullptr);
 	//Write tokens to file
 	std::string textTokens;
 	while(tokenStream->type != TokenType::EndOfFile)
@@ -48,9 +50,10 @@ void Compiler::compile()
 		tokenStream++;
 	}
 	writeFile(textTokens, m_buildDirectory + "/" + m_fileName + ".tk");
+	generateIRFile();
 	
 	//optimize
-	switch (m_optLevel)
+	/*switch (m_optLevel)
 	{
 	case OptimizationLevel::O0:
 		optimizeModule(llvm::OptimizationLevel::O0);
@@ -66,10 +69,8 @@ void Compiler::compile()
 		break;
 	default:
 		break;
-	}
+	}*/
 
-	LLVMManager& manager = LLVMManager::getInstance();
-	auto module = manager.getModule();
 
 	if (llvm::verifyModule(*module))
 	{
@@ -100,7 +101,6 @@ void Compiler::compile()
 	}
 	module->setDataLayout(m_targetMachine->createDataLayout());
 
-	generateIRFile();
 	generateAsmFile();
 	generateObjFile();
 	generateExeFile();
@@ -117,10 +117,10 @@ void Compiler::generateExeFile()
 	std::string outFile = "/out:" + pathToExeFile;
 	const char* linkArgs[] = {
 	  "lld::coff::link",
-	  outFile.c_str(),
 	  "/defaultlib:libcmt",
 	  "-libpath:libs/windows/x64",
-	  pathToObjFile.c_str()
+	  pathToObjFile.c_str(),
+	  outFile.c_str()
 	};
 
 	bool exitEarly = false;

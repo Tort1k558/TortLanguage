@@ -1,17 +1,20 @@
 #pragma once
 
-#include <llvm/IR/LLVMContext.h>
-#include <llvm/IR/IRBuilder.h>
-#include <llvm/IR/Value.h>
-#include <llvm/IR/Type.h>
-#include <llvm/IR/Module.h>
 #include<stdio.h>
 #include<iostream>
-#include <cstdio>
+#include<cstdio>
+
+#include<llvm/IR/LLVMContext.h>
+#include<llvm/IR/IRBuilder.h>
+#include<llvm/IR/Value.h>
+#include<llvm/IR/Type.h>
+#include<llvm/IR/Module.h>
+#include<llvm/IR/Function.h>
+#include<llvm/IR/BasicBlock.h>
+
 #include"Token.h"
 #include"SymbolTable.h"
 #include"SymbolTableManager.h"
-// 3)auto type of return value function
 
 llvm::Type* getType(TokenType type);
 
@@ -203,4 +206,35 @@ public:
     llvm::Value* codegen() override;
 private:
     std::shared_ptr<ASTNode> m_retExpr;
+};
+
+class IfAST : public ASTNode
+{
+public:
+    IfAST() = delete;
+    IfAST(std::shared_ptr<ASTNode> ifExpr,std::shared_ptr<BlockAST> ifBlock, std::shared_ptr<BlockAST> elseBlock = nullptr)
+        : m_ifExpr(ifExpr), m_ifBlock(ifBlock),m_elseBlock(elseBlock)
+    {
+        llvmType = ifExpr->llvmType;
+    }
+    llvm::Value* codegen() override;
+private:
+    std::shared_ptr<ASTNode> m_ifExpr;
+    std::shared_ptr<BlockAST> m_ifBlock;
+    std::shared_ptr<BlockAST> m_elseBlock;
+
+};
+class CastAST : public ASTNode
+{
+public:
+    CastAST() = delete;
+    CastAST(llvm::Value* value, llvm::Type* type)
+        : m_value(value),m_type(type)
+    {
+        llvmType = type;
+    }
+    llvm::Value* codegen() override;
+private:
+    llvm::Value* m_value;
+    llvm::Type* m_type;
 };

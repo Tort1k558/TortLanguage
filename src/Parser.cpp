@@ -9,11 +9,11 @@ Parser::Parser(TokenStream stream) :
 	m_tokenStream(stream),
 	m_globalSymbolTable(std::make_shared<SymbolTable>())
 {
-	parse();
 	LLVMManager& manager = LLVMManager::getInstance();
 	m_context = manager.getContext();
 	m_module = manager.getModule();
 	m_builder = manager.getBuilder();
+
 }
 void Parser::parse()
 {
@@ -65,25 +65,13 @@ std::shared_ptr<VarExprAST> Parser::parseVariable()
 
 std::shared_ptr<ASTNode> Parser::parseExpression()
 {
-	std::shared_ptr<ASTNode> lhs = parseLogicalOrExpr();
-
-	while (m_tokenStream->type == TokenType::Plus || m_tokenStream->type == TokenType::Minus)
-	{
-		TokenType op = m_tokenStream->type;
-		m_tokenStream++;
-
-		std::shared_ptr<ASTNode> rhs = parseLogicalOrExpr();
-
-		lhs = std::make_shared<BinaryExprAST>(op, lhs, rhs);
-	}
-
-	return lhs;
+	return parseLogicalOrExpr();
 }
 std::shared_ptr<ASTNode> Parser::parseLogicalOrExpr()
 {
 	std::shared_ptr<ASTNode> lhs = parseLogicalAndExpr();
 
-	while (m_tokenStream->type == TokenType::Or)
+	while (m_tokenStream->type == TokenType::BitOr)
 	{
 		TokenType op = m_tokenStream->type;
 		m_tokenStream++;
@@ -98,7 +86,7 @@ std::shared_ptr<ASTNode> Parser::parseLogicalAndExpr()
 {
 	std::shared_ptr<ASTNode> lhs = parseCompareExpr();
 
-	while (m_tokenStream->type == TokenType::And)
+	while (m_tokenStream->type == TokenType::BitAnd)
 	{
 		TokenType op = m_tokenStream->type;
 		m_tokenStream++;
@@ -126,7 +114,7 @@ std::shared_ptr<ASTNode> Parser::parsePlusMinus()
 {
 	std::shared_ptr<ASTNode> lhs = parseMulDiv();
 
-	while (m_tokenStream->type == TokenType::Mul || m_tokenStream->type == TokenType::Div)
+	while (m_tokenStream->type == TokenType::Plus || m_tokenStream->type == TokenType::Minus)
 	{
 		TokenType op = m_tokenStream->type;
 		m_tokenStream++;
@@ -209,6 +197,7 @@ std::shared_ptr<AssignExprAST> Parser::parseAssign()
 	val = parseExpression();
 	return std::make_shared<AssignExprAST>(varName, val);
 }
+
 std::vector<std::shared_ptr<ASTNode>> Parser::parseStatement()
 {
 	switch (m_tokenStream->type)
@@ -239,6 +228,8 @@ std::vector<std::shared_ptr<ASTNode>> Parser::parseStatement()
 		return { parseReturn() };
 	case TokenType::Print:
 		return { parsePrint() };
+	case TokenType::If:
+		return { parseIf() };
 	default:
 		std::cerr << "ERROR::PARSER::Unknown Token: " << g_nameTypes[static_cast<int>(m_tokenStream->type)] << std::endl;
 		m_tokenStream++;
@@ -289,6 +280,11 @@ std::vector<std::shared_ptr<ASTNode>> Parser::parseVarDecl()
 
 std::shared_ptr<BlockAST> Parser::parseBlock()
 {
+	auto prevSymbolTable = SymbolTableManager::getInstance().getSymbolTable();
+	auto symbolTableBlock = std::make_shared<SymbolTable>();
+	symbolTableBlock->extend(prevSymbolTable.get());
+	SymbolTableManager::getInstance().setSymbolTable(symbolTableBlock);
+
 	check({ TokenType::BlockStart });
 	m_tokenStream++;
 	auto block = std::make_unique<BlockAST>(m_globalSymbolTable);
@@ -305,6 +301,9 @@ std::shared_ptr<BlockAST> Parser::parseBlock()
 	
 	check({ TokenType::BlockStop });
 	m_tokenStream++;
+
+	SymbolTableManager::getInstance().setSymbolTable(prevSymbolTable);
+
 	return block;
 }
 
@@ -418,4 +417,18 @@ Token Parser::check(std::vector<TokenType> types)
 Token Parser::checkType()
 {
 	return check({ TokenType::Int,TokenType::Double,TokenType::Bool });
+}
+std::shared_ptr<IfAST> Parser::parseIf()
+{
+	m_tokenStream++;
+	std::shared_ptr<ASTNode> ifExpr = parseExpression();
+	std::shared_ptr<BlockAST> ifBlock = parseBlock();
+	std::shared_ptr<BlockAST> elseBlock = nullptr;
+	
+	if (m_tokenStream->type == TokenType::Else)
+	{
+		m_tokenStream++;
+		elseBlock = parseBlock();
+	}
+	return std::make_shared<IfAST>(ifExpr, ifBlock,elseBlock);
 }
