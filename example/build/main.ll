@@ -3,6 +3,10 @@ source_filename = "Tort"
 
 @0 = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
 @1 = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
+@2 = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
+@3 = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
+@4 = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
+@5 = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
 
 define i32 @sum(i32 %arg0, i32 %arg1) {
 entry:
@@ -28,7 +32,7 @@ entry:
   ret double %divtmp
 }
 
-define void @main() {
+define i32 @main() {
 entry:
   %a = alloca i32, align 4
   store i32 2, ptr %a, align 4
@@ -45,16 +49,37 @@ entry:
 ifblock:                                          ; preds = %entry
   %2 = load i32, ptr %a, align 4
   %3 = call i32 (ptr, ...) @printf(ptr @0, i32 %2)
-  br label %mergeblock
-
-mergeblock:                                       ; preds = %elseblock, %ifblock
-  %4 = load i32, ptr %c, align 4
-  ret void
+  br label %mergeblock2
 
 elseblock:                                        ; preds = %entry
-  %5 = load i32, ptr %b, align 4
-  %6 = call i32 (ptr, ...) @printf(ptr @1, i32 %5)
+  %4 = load i32, ptr %b, align 4
+  %5 = call i32 (ptr, ...) @printf(ptr @1, i32 %4)
+  br i1 true, label %ifblock1, label %mergeblock
+
+ifblock1:                                         ; preds = %elseblock
+  %6 = call i32 (ptr, ...) @printf(ptr @2, i32 10)
   br label %mergeblock
+
+mergeblock:                                       ; preds = %ifblock1, %elseblock
+  br label %mergeblock2
+
+mergeblock2:                                      ; preds = %mergeblock, %ifblock
+  %7 = call i32 (ptr, ...) @printf(ptr @3, i32 5555555)
+  br i1 true, label %ifblock3, label %elseblock4
+
+ifblock3:                                         ; preds = %mergeblock2
+  %8 = load i32, ptr %a, align 4
+  %9 = call i32 (ptr, ...) @printf(ptr @4, i32 %8)
+  br label %mergeblock5
+
+elseblock4:                                       ; preds = %mergeblock2
+  %10 = load i32, ptr %b, align 4
+  %11 = call i32 (ptr, ...) @printf(ptr @5, i32 %10)
+  br label %mergeblock5
+
+mergeblock5:                                      ; preds = %elseblock4, %ifblock3
+  %12 = load i32, ptr %c, align 4
+  ret i32 %12
 }
 
 declare i32 @printf(ptr, ...)

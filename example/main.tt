@@ -16,6 +16,19 @@ def main()
 		else
 		{
 			print b;
+			if 1
+			{
+				print 10;
+			}
+		}
+		print 5555555;
+		if 3
+		{
+			print a;
+		}
+		else
+		{
+			print b;
 		}
         return c;
     }
@@ -23,5 +36,5 @@ def main()
 
 def div(double a,double b)
 {
-    return a / b ;
+    return a / b;
 }

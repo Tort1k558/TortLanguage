@@ -264,7 +264,7 @@ std::vector<std::shared_ptr<ASTNode>> Parser::parseVarDecl()
 			std::shared_ptr<ASTNode> value = parseExpression();
 			varsAssign.push_back({ varName, value });
 		}
-		else if (m_tokenStream->type == TokenType::Identifier && m_tokenStream.next().type != TokenType::Assign)
+		else if(m_tokenStream->type == TokenType::Identifier && m_tokenStream.next().type != TokenType::Assign)
 		{
 			std::string varName = m_tokenStream->value;
 			m_tokenStream++;
@@ -294,6 +294,11 @@ std::shared_ptr<BlockAST> Parser::parseBlock()
 		for (const auto& stmt : statements)
 		{
 			block->addStatement(stmt);
+		}
+		std::shared_ptr<IfAST> ast = std::dynamic_pointer_cast<IfAST>(statements[0]);
+		if (ast)
+		{
+			continue;
 		}
 		check({ TokenType::Semicolon });
 		m_tokenStream++;

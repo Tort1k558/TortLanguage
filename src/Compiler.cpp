@@ -38,9 +38,8 @@ void Compiler::compile()
 	TokenStream tokenStream(std::move(lexer));
 	Parser parser(tokenStream);
 	parser.parse();
-	LLVMManager& manager = LLVMManager::getInstance();
-	auto module = manager.getModule();
-	module->print(llvm::outs(), nullptr);
+
+
 	//Write tokens to file
 	std::string textTokens;
 	while(tokenStream->type != TokenType::EndOfFile)
@@ -53,7 +52,7 @@ void Compiler::compile()
 	generateIRFile();
 	
 	//optimize
-	/*switch (m_optLevel)
+	switch (m_optLevel)
 	{
 	case OptimizationLevel::O0:
 		optimizeModule(llvm::OptimizationLevel::O0);
@@ -69,7 +68,10 @@ void Compiler::compile()
 		break;
 	default:
 		break;
-	}*/
+	}
+	
+	LLVMManager& manager = LLVMManager::getInstance();
+	auto module = manager.getModule();
 
 
 	if (llvm::verifyModule(*module))
@@ -84,7 +86,7 @@ void Compiler::compile()
 	llvm::InitializeAllTargetMCs();
 	llvm::InitializeAllAsmParsers();
 	llvm::InitializeAllAsmPrinters();
-
+	
 	std::string targetTriple = llvm::sys::getDefaultTargetTriple();
 	std::string error;
 	const llvm::Target* target = llvm::TargetRegistry::lookupTarget(targetTriple, error);
@@ -100,7 +102,7 @@ void Compiler::compile()
 		return;
 	}
 	module->setDataLayout(m_targetMachine->createDataLayout());
-
+	module->setTargetTriple(targetTriple);
 	generateAsmFile();
 	generateObjFile();
 	generateExeFile();

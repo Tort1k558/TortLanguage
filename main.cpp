@@ -19,4 +19,5 @@ int main() {
     Compiler compiler("example/main.tt");
     compiler.compile();
 
+    return 0;
 }

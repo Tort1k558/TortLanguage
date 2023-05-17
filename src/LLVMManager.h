@@ -22,6 +22,12 @@ public:
 	{
 		return m_module;
 	}
+	~LLVMManager()
+	{
+		m_module.reset();
+		m_builder.reset();
+		m_context.reset();
+	}
 private:
 	LLVMManager()
 		: m_context(std::make_shared<llvm::LLVMContext>()),

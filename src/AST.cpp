@@ -461,10 +461,10 @@ llvm::Value* IfAST::codegen()
 
     llvm::BasicBlock* ifBlock = llvm::BasicBlock::Create(*context, "ifblock", function);
     llvm::BasicBlock* elseBlock = nullptr;
-    llvm::BasicBlock* mergeBlock = llvm::BasicBlock::Create(*context, "mergeblock", function);
+    llvm::BasicBlock* mergeBlock = llvm::BasicBlock::Create(*context, "mergeblock");
     if (m_elseBlock)
     {
-        elseBlock = llvm::BasicBlock::Create(*context, "elseblock", function);
+        elseBlock = llvm::BasicBlock::Create(*context, "elseblock");
         builder->CreateCondBr(condValue, ifBlock, elseBlock);
     }
     else
@@ -476,14 +476,12 @@ llvm::Value* IfAST::codegen()
     builder->SetInsertPoint(ifBlock);
     llvm::Value* ifValue = m_ifBlock->codegen();
     builder->CreateBr(mergeBlock);
-    //какой-то пиздец со вставкой блоков
-    //ifBlock->insertInto(function);
     ifBlock = builder->GetInsertBlock();
 
     llvm::Value* elseValue = nullptr;
     if (m_elseBlock)
     {
-        //elseBlock->insertInto(function);
+        elseBlock->insertInto(function);
 
         builder->SetInsertPoint(elseBlock);
         elseValue = m_elseBlock->codegen();
@@ -492,7 +490,7 @@ llvm::Value* IfAST::codegen()
         elseBlock = builder->GetInsertBlock(); 
 
     }
-    //mergeBlock->insertInto(function);
+    mergeBlock->insertInto(function);
     builder->SetInsertPoint(mergeBlock);
     
     return ifValue;
