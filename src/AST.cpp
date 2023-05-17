@@ -476,7 +476,7 @@ llvm::Value* IfAST::codegen()
     builder->SetInsertPoint(ifBlock);
     llvm::Value* ifValue = m_ifBlock->codegen();
     builder->CreateBr(mergeBlock);
-
+    //какой-то пиздец со вставкой блоков
     //ifBlock->insertInto(function);
     ifBlock = builder->GetInsertBlock();
 

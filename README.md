@@ -1,16 +1,15 @@
 # TortLanguage
 
 ## What is it?
-TortLanguage is a project to create my programming language.
-In this project, a compiler is written that uses the LLVM backend.
+Tort is a custom programming language that I created for learning purposes, because it was interesting how compilers for programming languages are written. The file with the Tort code must have an extension .tt . Syntax I made a mixture of languages like Python and C++.
 
-## Result of work
+## Compiler
+##### The compiler uses LLVM as a backend.
 Upon completion of this work, the compiler generates files such as:
 - Token files - It describes each type of word and its affiliation
 - Assembler file - Generated assembler code
 - Object file, Which is then linked to an executable file using the lld linker
-
-
+- Executable fileы
 ## Example
         def sum(int a,int b)
         {
@@ -99,15 +98,11 @@ Output:
 	140
 	2.500000
 	
-## Features
-- Automatic detection of the type of the returned function
-- Ability to specify the optimization level O[0-3]
 
 ## Support
 - Windows
 
 ## TODO
-- Add branches
 - Add loops
 - Add types: str,bool
 - Add modularity
