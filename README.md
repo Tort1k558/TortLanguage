@@ -20,26 +20,26 @@ Upon completion of this work, the compiler generates files such as:
 		
 		def main()
 		{
-		int a = 2,b = 1;
-		int c = a | b + 4;
-		if 0:
-		{
-			print a;
-		}
-		else if 0:
-		{
-			print 10;
-		}
-		else if 1:
-		{
-			print 9;
-		}
-		else:
-		{
-			print 99999;
-		}
-		print 5555555;
-		return c;
+			int a = 2,b = 1;
+			int c = a | b + 4;
+			if 0:
+			{
+				print a;
+			}
+			else if 0:
+			{
+				print 10;
+			}
+			else if 1:
+			{
+				print 9;
+			}
+			else:
+			{
+				print 99999;
+			}
+			print 5555555;
+			return c;
 		}
 		
 		def div(double a,double b)
