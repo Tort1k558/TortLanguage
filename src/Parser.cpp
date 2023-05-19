@@ -427,13 +427,30 @@ std::shared_ptr<IfAST> Parser::parseIf()
 {
 	m_tokenStream++;
 	std::shared_ptr<ASTNode> ifExpr = parseExpression();
+	check({ TokenType::Colon });
+	m_tokenStream++;
 	std::shared_ptr<BlockAST> ifBlock = parseBlock();
 	std::shared_ptr<BlockAST> elseBlock = nullptr;
-	
+	std::vector<std::pair<std::shared_ptr<ASTNode>, std::shared_ptr<BlockAST>>> elseIfs;
+	while (m_tokenStream->type == TokenType::Else && m_tokenStream.next().type == TokenType::If)
+	{
+		m_tokenStream++;
+		m_tokenStream++;
+
+		std::shared_ptr<ASTNode> elseIfExpr = parseExpression();
+		check({ TokenType::Colon });
+		m_tokenStream++;
+
+		std::shared_ptr<BlockAST> elseIfBlock = parseBlock();
+		elseIfs.push_back({elseIfExpr, elseIfBlock});
+	}
 	if (m_tokenStream->type == TokenType::Else)
 	{
 		m_tokenStream++;
+		check({ TokenType::Colon });
+		m_tokenStream++;
+
 		elseBlock = parseBlock();
 	}
-	return std::make_shared<IfAST>(ifExpr, ifBlock,elseBlock);
+	return std::make_shared<IfAST>(ifExpr, ifBlock, elseBlock, std::move(elseIfs));
 }

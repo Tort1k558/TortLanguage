@@ -460,12 +460,21 @@ llvm::Value* IfAST::codegen()
     llvm::Function* function = builder->GetInsertBlock()->getParent();
 
     llvm::BasicBlock* ifBlock = llvm::BasicBlock::Create(*context, "ifblock", function);
+    llvm::BasicBlock* elseifBlockHelp = nullptr;
     llvm::BasicBlock* elseBlock = nullptr;
     llvm::BasicBlock* mergeBlock = llvm::BasicBlock::Create(*context, "mergeblock");
+    if (!m_elseIfs.empty())
+    {
+        elseifBlockHelp = llvm::BasicBlock::Create(*context, "elseifblockhelp");
+        builder->CreateCondBr(condValue, ifBlock, elseifBlockHelp);
+    }
     if (m_elseBlock)
     {
         elseBlock = llvm::BasicBlock::Create(*context, "elseblock");
-        builder->CreateCondBr(condValue, ifBlock, elseBlock);
+        if (m_elseIfs.empty())
+        {
+            builder->CreateCondBr(condValue, ifBlock, elseBlock);
+        }
     }
     else
     {
@@ -478,6 +487,40 @@ llvm::Value* IfAST::codegen()
     builder->CreateBr(mergeBlock);
     ifBlock = builder->GetInsertBlock();
 
+    if (!m_elseIfs.empty())
+    {
+        llvm::BasicBlock* nextElseifBlockHelp = nullptr;
+        for (size_t i = 0; i<m_elseIfs.size();i++)
+        {
+            builder->SetInsertPoint(elseifBlockHelp);
+            llvm::Value* elseifCondValue = m_elseIfs[i].first->codegen();
+            if (elseifCondValue->getType() != builder->getInt1Ty())
+            {
+                elseifCondValue = std::make_shared<CastAST>(elseifCondValue, builder->getInt1Ty())->codegen();
+            }
+
+            if (i == m_elseIfs.size() - 1)
+            {
+                nextElseifBlockHelp = elseBlock;
+            }
+            else
+            {
+                nextElseifBlockHelp = llvm::BasicBlock::Create(*context, "elseifblockhelp");
+            }
+            llvm::BasicBlock* elseifBlock = llvm::BasicBlock::Create(*context, "elseifblock");
+            builder->CreateCondBr(elseifCondValue, elseifBlock, nextElseifBlockHelp);
+            elseifBlockHelp->insertInto(function);
+            elseifBlock->insertInto(function);
+
+            builder->SetInsertPoint(elseifBlock);
+            llvm::Value* elseifValue = m_elseIfs[i].second->codegen();
+            builder->CreateBr(mergeBlock);
+            elseifBlock = builder->GetInsertBlock();
+
+            elseifBlockHelp = nextElseifBlockHelp;
+        }
+    }
+  
     llvm::Value* elseValue = nullptr;
     if (m_elseBlock)
     {

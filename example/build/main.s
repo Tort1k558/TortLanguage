@@ -52,21 +52,15 @@ main:
 .seh_proc main
 	subq	$56, %rsp
 	leaq	.L__unnamed_1(%rip), %rcx
-	movl	$1, %edx
+	movl	$99999, %edx
 	.seh_stackalloc 56
 	.seh_endprologue
-	movl	$2, 48(%rsp)
-	movl	$1, 52(%rsp)
+	movl	$2, 52(%rsp)
+	movl	$1, 48(%rsp)
 	movl	$7, 44(%rsp)
 	callq	printf
 	leaq	.L__unnamed_2(%rip), %rcx
-	movl	$10, %edx
-	callq	printf
-	leaq	.L__unnamed_3(%rip), %rcx
 	movl	$5555555, %edx
-	callq	printf
-	movl	48(%rsp), %edx
-	leaq	.L__unnamed_4(%rip), %rcx
 	callq	printf
 	movl	44(%rsp), %eax
 	addq	$56, %rsp
@@ -74,22 +68,13 @@ main:
 	.seh_endproc
 
 	.section	.rdata,"dr"
-.L__unnamed_5:
+.L__unnamed_3:
 	.asciz	"%d\n"
 
 .L__unnamed_1:
 	.asciz	"%d\n"
 
 .L__unnamed_2:
-	.asciz	"%d\n"
-
-.L__unnamed_3:
-	.asciz	"%d\n"
-
-.L__unnamed_4:
-	.asciz	"%d\n"
-
-.L__unnamed_6:
 	.asciz	"%d\n"
 
 	.globl	_fltused

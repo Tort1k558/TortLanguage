@@ -41,6 +41,7 @@ enum class TokenType {
     BlockStart,
     BlockStop,
     Semicolon,
+    Colon,
     Print,
     Invalid
 };
@@ -84,6 +85,7 @@ const std::vector<std::string> g_nameTypes = {
     "BlockStart",
     "BlockStop",
     "Semicolon",
+    "Colon",
     "Print",
     "Invalid"
 };

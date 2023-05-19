@@ -161,6 +161,10 @@ Token Lexer::getPunctuation() {
     {
         return Token{ TokenType::Semicolon, m_input.substr(startPos, m_currentPos - startPos) };
     }
+    else if (m_input[m_currentPos - 1] == ':')
+    {
+        return Token{ TokenType::Colon, m_input.substr(startPos, m_currentPos - startPos) };
+    }
     else if (m_input[m_currentPos - 1] == '(')
     {
         return Token{ TokenType::OpenParen, m_input.substr(startPos, m_currentPos - startPos) };
@@ -203,7 +207,7 @@ bool Lexer::isOperator(char c) {
     return c == '+' || c == '-' || c == '*' || c == '/' || c == '=' || c == '<' || c == '>' || c == '&' || c =='|';
 }
 bool Lexer::isPunctuation(char c) {
-    return c == ';' || c == ',' || c == '(' || c == ')' || c == '{' || c == '}';
+    return c == ';' || c == ',' || c == '(' || c == ')' || c == '{' || c == '}' || c == ':';
 }
 bool Lexer::isQuote(char c) {
     return c == '\'' || c == '"';
