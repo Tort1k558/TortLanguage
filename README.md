@@ -11,7 +11,8 @@ Upon completion of this work, the compiler generates files such as:
 - Object file, Which is then linked to an executable file using the lld linker
 - Executable file
 ## Example
-        def sum(int a,int b)
+        
+		def sum(int a,int b)
 		{
 			return a+b;
 		}

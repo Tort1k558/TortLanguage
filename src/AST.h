@@ -139,7 +139,7 @@ public:
     {
         m_symbolTable->extend(symbolTable.get());
     }
-    std::shared_ptr<ASTNode> getReturn();
+    std::vector<std::shared_ptr<ASTNode>> getReturns();
     llvm::Value* codegen() override;
 
 private:
@@ -217,6 +217,9 @@ public:
     {
         llvmType = ifExpr->llvmType;
     }
+    std::shared_ptr<BlockAST> getIfBlock(){ return m_ifBlock; }
+    std::shared_ptr<BlockAST> getElseBlock(){ return m_elseBlock; }
+    std::vector<std::pair<std::shared_ptr<ASTNode>, std::shared_ptr<BlockAST>>> getElseIfs(){ return m_elseIfs; }
     llvm::Value* codegen() override;
 private:
     std::shared_ptr<ASTNode> m_ifExpr;
@@ -225,6 +228,7 @@ private:
     std::vector<std::pair<std::shared_ptr<ASTNode>,std::shared_ptr<BlockAST>>> m_elseIfs;
 
 };
+
 class CastAST : public ASTNode
 {
 public:

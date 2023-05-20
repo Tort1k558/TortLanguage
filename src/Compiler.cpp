@@ -74,7 +74,7 @@ void Compiler::compile()
 	auto module = manager.getModule();
 
 
-	if (llvm::verifyModule(*module))
+	if (llvm::verifyModule(*module,&llvm::outs()))
 	{
 		std::cerr << "ERROR::COMPILER::Module is not correct" << std::endl;
 		return;

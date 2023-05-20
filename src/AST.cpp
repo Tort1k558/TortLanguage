@@ -280,8 +280,8 @@ llvm::Value* ConsoleOutputExprAST::codegen()
     {
         formatStr = "%s\n";
         llvm::Value* bool_str = builder->CreateGlobalStringPtr("%s");
-        llvm::Value* true_str = builder->CreateGlobalStringPtr("true");
-        llvm::Value* false_str = builder->CreateGlobalStringPtr("false");
+        llvm::Value* true_str = builder->CreateGlobalStringPtr("true\n");
+        llvm::Value* false_str = builder->CreateGlobalStringPtr("false\n");
         llvm::Value* result = builder->CreateSelect(val, true_str, false_str);
         std::vector<llvm::Value*> printf_args;
         printf_args.push_back(bool_str);
@@ -311,17 +311,54 @@ llvm::Value* BlockAST::codegen()
     return lastVal;
 }
 
-std::shared_ptr<ASTNode> BlockAST::getReturn()
+std::vector<std::shared_ptr<ASTNode>> BlockAST::getReturns()
 {
+    std::vector<std::shared_ptr<ASTNode>> returns;
     for (const auto& stmt : m_stmts)
     {
-        std::shared_ptr<ReturnAST> ret = std::dynamic_pointer_cast<ReturnAST>(stmt);
-        if (ret != nullptr)
+        std::shared_ptr<ReturnAST> returnAST = std::dynamic_pointer_cast<ReturnAST>(stmt);
+        if (returnAST != nullptr)
         {
-            return ret;
+            returns.push_back(returnAST);
+        }
+        std::shared_ptr<BlockAST> blockAST = std::dynamic_pointer_cast<BlockAST>(stmt);
+        if (blockAST != nullptr)
+        {
+            for (const auto& ret : blockAST->getReturns())
+            {
+                returns.push_back(ret);
+            }
+        }
+        std::shared_ptr<IfAST> ifAST= std::dynamic_pointer_cast<IfAST>(stmt);
+        if (ifAST != nullptr)
+        {
+            auto ifBlockAST = ifAST->getIfBlock();
+            auto elseIfsBlockAST = ifAST->getElseIfs();
+            auto elseBlockAST = ifAST->getElseBlock();
+            for (const auto& ret : ifBlockAST->getReturns())
+            {
+                returns.push_back(ret);
+            }
+            if (!elseIfsBlockAST.empty())
+            {
+                for (size_t i = 0; i < elseIfsBlockAST.size(); i++)
+                {
+                    for (const auto& ret : elseIfsBlockAST[i].second->getReturns())
+                    {
+                        returns.push_back(ret);
+                    }
+                }
+            }
+            if (elseBlockAST)
+            {
+                for (const auto& ret : elseBlockAST->getReturns())
+                {
+                    returns.push_back(ret);
+                }
+            }
         }
     }
-    return nullptr;
+    return returns;
 }
 
 llvm::Value* ProtFunctionAST::codegen() 
@@ -365,12 +402,21 @@ llvm::Value* FunctionAST::codegen()
         llvm::Type* retType;
         if (!m_retType)
         {
-            auto retAST = m_body->getReturn();
-            if (retAST)
+            auto returns = m_body->getReturns();
+            if (!returns.empty())
             {
-                if (retAST->llvmType)
+                retType = returns[0]->llvmType;
+                for (size_t i = 0; i < returns.size(); i++)
                 {
-                    m_retType = retAST->llvmType;
+                    if (returns[i]->llvmType != retType)
+                    {
+                        std::cerr << "ERROR::The function cannot return different types of values" << std::endl;
+                        return nullptr;
+                    }
+                }
+                if (retType)
+                {
+                    m_retType = retType;
                 }
                 else
                 {
@@ -424,9 +470,9 @@ llvm::Value* CallExprAST::codegen()
 
     llvm::Function* func = module->getFunction(m_name);
     if (!func) {
-        std::cout << "Function not found" << std::endl;
+        std::cerr << "Function not found" << std::endl;
     }
-
+    
     std::vector<llvm::Value*> args;
     for (const auto& arg : m_args) {
         args.push_back(arg->codegen());
@@ -437,12 +483,15 @@ llvm::Value* CallExprAST::codegen()
 
 llvm::Value* ReturnAST::codegen()
 {
+    //Должен быть один на функцию
     LLVMManager& manager = LLVMManager::getInstance();
     auto builder = manager.getBuilder();
-
+    auto context = manager.getContext();
     llvm::Value* retVal = m_retExpr->codegen();
     builder->CreateRet(retVal);
+
     return retVal;
+
 }
 
 llvm::Value* IfAST::codegen()
@@ -486,18 +535,16 @@ llvm::Value* IfAST::codegen()
     llvm::Value* ifValue = m_ifBlock->codegen();
     builder->CreateBr(mergeBlock);
     ifBlock = builder->GetInsertBlock();
-
+    
+    //create else if blocks
     if (!m_elseIfs.empty())
     {
         llvm::BasicBlock* nextElseifBlockHelp = nullptr;
         for (size_t i = 0; i<m_elseIfs.size();i++)
         {
             builder->SetInsertPoint(elseifBlockHelp);
-            llvm::Value* elseifCondValue = m_elseIfs[i].first->codegen();
-            if (elseifCondValue->getType() != builder->getInt1Ty())
-            {
-                elseifCondValue = std::make_shared<CastAST>(elseifCondValue, builder->getInt1Ty())->codegen();
-            }
+            function->insert(function->end(), elseifBlockHelp);
+
 
             if (i == m_elseIfs.size() - 1)
             {
@@ -507,25 +554,33 @@ llvm::Value* IfAST::codegen()
             {
                 nextElseifBlockHelp = llvm::BasicBlock::Create(*context, "elseifblockhelp");
             }
+
             llvm::BasicBlock* elseifBlock = llvm::BasicBlock::Create(*context, "elseifblock");
+            function->insert(function->end(), elseifBlock);
+
+
+            llvm::Value* elseifCondValue = m_elseIfs[i].first->codegen();
+            if (elseifCondValue->getType() != builder->getInt1Ty())
+            {
+                elseifCondValue = std::make_shared<CastAST>(elseifCondValue, builder->getInt1Ty())->codegen();
+            }
             builder->CreateCondBr(elseifCondValue, elseifBlock, nextElseifBlockHelp);
-            elseifBlockHelp->insertInto(function);
-            elseifBlock->insertInto(function);
+            elseifBlockHelp = builder->GetInsertBlock();
 
             builder->SetInsertPoint(elseifBlock);
             llvm::Value* elseifValue = m_elseIfs[i].second->codegen();
             builder->CreateBr(mergeBlock);
             elseifBlock = builder->GetInsertBlock();
-
+            
             elseifBlockHelp = nextElseifBlockHelp;
         }
     }
-  
+    
+    //create else if exists
     llvm::Value* elseValue = nullptr;
     if (m_elseBlock)
     {
-        elseBlock->insertInto(function);
-
+        function->insert(function->end(), elseBlock);
         builder->SetInsertPoint(elseBlock);
         elseValue = m_elseBlock->codegen();
         builder->CreateBr(mergeBlock);
@@ -533,7 +588,7 @@ llvm::Value* IfAST::codegen()
         elseBlock = builder->GetInsertBlock(); 
 
     }
-    mergeBlock->insertInto(function);
+    function->insert(function->end(), mergeBlock);
     builder->SetInsertPoint(mergeBlock);
     
     return ifValue;

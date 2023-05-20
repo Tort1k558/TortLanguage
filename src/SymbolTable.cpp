@@ -45,15 +45,15 @@ llvm::Value* SymbolTable::getValueVar(const std::string& name)
 	NodeTable node = *it;
 	llvm::Type* varType;
 	llvm::Value* var;
-	if (node.type->isPointerTy())
+	if (it->type->isPointerTy())
 	{
-		varType = llvm::dyn_cast<llvm::AllocaInst>(node.value)->getAllocatedType();
-		var = builder->CreateLoad(varType, node.value);
+		varType = llvm::dyn_cast<llvm::AllocaInst>(it->value)->getAllocatedType();
+		var = builder->CreateLoad(varType, it->value);
 	}
 	else
 	{
-		varType = node.type;
-		var = node.value;
+		varType = it->type;
+		var = it->value;
 	}
 	return var;
 }
