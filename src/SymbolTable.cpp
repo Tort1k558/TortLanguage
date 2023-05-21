@@ -39,8 +39,7 @@ llvm::Value* SymbolTable::getValueVar(const std::string& name)
 		});
 	if (it == m_symbolTable.end())
 	{
-		std::cerr << "ERROR Var is not defined!" << std::endl;
-		return nullptr;
+		throw std::runtime_error("ERROR::Var is not defined!");
 	}
 	NodeTable node = *it;
 	llvm::Type* varType;
@@ -69,15 +68,13 @@ llvm::Value* SymbolTable::getPtrVar(const std::string& name)
 		});
 	if (it == m_symbolTable.end())
 	{
-		std::cerr << "ERROR Var is not defined!" << std::endl;
-		return nullptr;
+		throw std::runtime_error("ERROR::Var is not defined!");
 	}
 	NodeTable node = *it;
 
 	if (!node.type->isPointerTy())
 	{
-		std::cerr << "ERROR::The " << name << " is not variable!" << std::endl;
-		return nullptr;
+		throw std::runtime_error("ERROR::The " + name + " is not variable!");
 	}
 	return node.value;
 }
@@ -89,8 +86,7 @@ llvm::Type* SymbolTable::getTypeVar(const std::string& name)
 		});
 	if (it == m_symbolTable.end())
 	{
-		std::cerr << "ERROR Var is not defined!" << std::endl;
-		return nullptr;
+		throw std::runtime_error("ERROR::Var is not defined!");
 	}
 	return it->type;
 }

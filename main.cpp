@@ -12,12 +12,17 @@
 #include"src/LLVMManager.h"
 #include"src/Compiler.h"
 
-//TODO
-// &&,||,
-//Не правильно реализовал
+
 int main() {
     Compiler compiler("example/main.tt");
-    compiler.compile();
+	try
+	{
+		compiler.compile();
+	}
+	catch (const std::exception& e)
+	{
+		std::cout << e.what() << std::endl;
+	}
 
     return 0;
 }

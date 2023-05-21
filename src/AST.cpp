@@ -21,7 +21,7 @@ llvm::Type* getType(TokenType type)
     default:
         break;
     }
-    std::cout << "ERROR::UnknownType::" << g_nameTypes[static_cast<int>(type)];
+    throw std::runtime_error("ERROR::UnknownType " + g_nameTypes[static_cast<int>(type)]);
 }
 llvm::Value* LLVMValueAST::codegen()
 {
@@ -53,7 +53,7 @@ llvm::Value* VarDeclAST::codegen()
         }
         else
         {
-            std::cerr << "ERROR::AST::This type is not supported yet" << std::endl;
+            throw std::runtime_error("ERROR::AST::This type is not supported yet");
         }
     }
     else
@@ -85,7 +85,7 @@ llvm::Value* AssignExprAST::codegen()
 
     llvm::Value* var = symbolTable->getPtrVar(m_varName);
     if (!var) {
-        std::cerr << "ERROR::AST::Var is not defined" << std::endl;
+        throw std::runtime_error("ERROR::AST::Var is not defined");
     }
     llvm::Value* val = m_val->codegen();
     if (!val) {
@@ -147,8 +147,7 @@ llvm::Value* BinaryExprAST::codegen()
         }
         else
         {
-            std::cerr << "ERROR::AST::Invalid type for binary operation " << lhsType << std::endl;
-            return nullptr;
+            throw std::runtime_error("ERROR::AST::Invalid type for binary operation " + lhsType->getStructName().str());
         }
     case TokenType::Minus:
         if (lhsType->isDoubleTy())
@@ -161,8 +160,7 @@ llvm::Value* BinaryExprAST::codegen()
         }
         else
         {
-            std::cerr << "ERROR::AST::Invalid type for binary operation " << lhsType << std::endl;
-            return nullptr;
+            throw std::runtime_error("ERROR::AST::Invalid type for binary operation " + lhsType->getStructName().str());
         }
     case TokenType::Mul:
         if (lhsType->isDoubleTy())
@@ -175,8 +173,7 @@ llvm::Value* BinaryExprAST::codegen()
         }
         else
         {
-            std::cerr << "ERROR::AST::Invalid type for binary operation " << lhsType << std::endl;
-            return nullptr;
+            throw std::runtime_error("ERROR::AST::Invalid type for binary operation " + lhsType->getStructName().str());
         }
     case TokenType::Div:
         if (lhsType->isDoubleTy())
@@ -189,8 +186,7 @@ llvm::Value* BinaryExprAST::codegen()
         }
         else
         {
-            std::cerr << "ERROR::AST::Invalid type for binary operation " << lhsType << std::endl;
-            return nullptr;
+            throw std::runtime_error("ERROR::AST::Invalid type for binary operation " + lhsType->getStructName().str());
         }
     case TokenType::Less:
         if (lhsType->isDoubleTy())
@@ -203,8 +199,7 @@ llvm::Value* BinaryExprAST::codegen()
         }
         else
         {
-            std::cerr << "ERROR::AST::Invalid type for binary operation " << lhsType << std::endl;
-            return nullptr;
+            throw std::runtime_error("ERROR::AST::Invalid type for binary operation " + lhsType->getStructName().str());
         }
     case TokenType::Greater:
         if (lhsType->isDoubleTy())
@@ -217,8 +212,7 @@ llvm::Value* BinaryExprAST::codegen()
         }
         else
         {
-            std::cerr << "ERROR::AST::Invalid type for binary operation " << lhsType << std::endl;
-            return nullptr;
+            throw std::runtime_error("ERROR::AST::Invalid type for binary operation " + lhsType->getStructName().str());
         }
     case TokenType::Equal:
         if (lhsType->isDoubleTy())
@@ -231,8 +225,7 @@ llvm::Value* BinaryExprAST::codegen()
         }
         else
         {
-            std::cerr << "ERROR::AST::Invalid type for binary operation " << lhsType << std::endl;
-            return nullptr;
+            throw std::runtime_error("ERROR::AST::Invalid type for binary operation " + lhsType->getStructName().str());
         }
     case TokenType::BitAnd:
         return builder->CreateAnd(lhsVal, rhsVal, "bitandtmp");
@@ -242,7 +235,7 @@ llvm::Value* BinaryExprAST::codegen()
         //TODO
         //return builder->CreateCall(module->getFunction("pow"), {lhsVal, rhsVal});
     default:
-        std::cerr << "ERROR::AST::Invalid binary operator: " << g_nameTypes[static_cast<int>(m_op)] << std::endl;
+        throw std::runtime_error("ERROR::AST::Invalid binary operator: " + g_nameTypes[static_cast<int>(m_op)]);
         return nullptr;
     }
 }
@@ -262,7 +255,7 @@ llvm::Value* ConsoleOutputExprAST::codegen()
         printFunc = llvm::Function::Create(printFuncType, llvm::Function::ExternalLinkage, "printf", *module);
     }
     if (!printFunc) {
-        std::cerr << "Printf function not found" << std::endl;
+        throw std::runtime_error("Printf function not found");
         return nullptr;
     }
 
@@ -375,7 +368,7 @@ llvm::Value* ProtFunctionAST::codegen()
     }
     if (!m_retType)
     {
-        std::cerr << "ERROR::AST::The function declaration cannot be specified without the return value type" << std::endl;
+        throw std::runtime_error("ERROR::AST::The function declaration cannot be specified without the return value type");
         return nullptr;
     }
     llvm::FunctionType* funcType = llvm::FunctionType::get(m_retType, argTypes, false);
@@ -416,7 +409,7 @@ llvm::Value* FunctionAST::codegen()
                 {
                     if (returns[i]->llvmType != retType)
                     {
-                        std::cerr << "ERROR::The function cannot return different types of values" << std::endl;
+                        throw std::runtime_error("ERROR::The function cannot return different types of values");
                         return nullptr;
                     }
                 }
@@ -499,7 +492,7 @@ llvm::Value* CallExprAST::codegen()
 
     llvm::Function* func = module->getFunction(m_name);
     if (!func) {
-        std::cerr << "Function not found" << std::endl;
+        throw std::runtime_error("Function not found: " + m_name);
     }
     
     std::vector<llvm::Value*> args;
@@ -661,7 +654,7 @@ llvm::Value* CastAST::codegen()
     }
     else
     {
-        std::cerr << "ERROR::AST::Invalid Cast type!" << std::endl;
+        throw std::runtime_error("ERROR::AST::Invalid Cast type!");
     }
 }
 

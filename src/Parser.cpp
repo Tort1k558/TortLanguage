@@ -31,7 +31,7 @@ void Parser::parse()
 			m_tokenStream++;
 			break;
 		default:
-			std::cerr << "ERROR::PARSER::Unknown Token: " << g_nameTypes[static_cast<int>(m_tokenStream->type)] << std::endl;
+			throw std::runtime_error("ERROR::PARSER::Unknown Token: " + g_nameTypes[static_cast<int>(m_tokenStream->type)]);
 			m_tokenStream++;
 			break;
 		}
@@ -182,7 +182,7 @@ std::shared_ptr<ASTNode> Parser::parseFactor()
 	}
 	else
 	{
-		std::cerr << "ERROR::PARSER::Unexpected Token: " << g_nameTypes[static_cast<int>(m_tokenStream->type)] << std::endl;
+		throw std::runtime_error("ERROR::PARSER::Unexpected Token: " + g_nameTypes[static_cast<int>(m_tokenStream->type)]);
 		return nullptr;
 	}
 }
@@ -418,7 +418,7 @@ Token Parser::check(std::vector<TokenType> types)
 			return curToken;
 		}
 	}
-	return {TokenType::Invalid};
+	return { TokenType::Invalid };
 }
 
 Token Parser::checkType()

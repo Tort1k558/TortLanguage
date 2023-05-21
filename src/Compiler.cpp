@@ -76,7 +76,7 @@ void Compiler::compile()
 
 	if (llvm::verifyModule(*module,&llvm::outs()))
 	{
-		std::cerr << "ERROR::COMPILER::Module is not correct" << std::endl;
+		throw std::runtime_error("ERROR::COMPILER::Module is not correct");
 		return;
 	}
 	
@@ -91,14 +91,14 @@ void Compiler::compile()
 	std::string error;
 	const llvm::Target* target = llvm::TargetRegistry::lookupTarget(targetTriple, error);
 	if (!target) {
-		std::cerr << error << std::endl;
+		throw std::runtime_error(error);
 		return;
 	}
 	llvm::TargetOptions targetOptions;
 	std::optional<llvm::Reloc::Model> relocModel;
 	m_targetMachine = std::shared_ptr<llvm::TargetMachine>(target->createTargetMachine(targetTriple, llvm::sys::getHostCPUName().str(), "", targetOptions, relocModel));
 	if (!m_targetMachine) {
-		std::cerr << "ERROR::COMPILER::Failed to create target machine" << std::endl;
+		throw std::runtime_error("ERROR::COMPILER::Failed to create target machine");
 		return;
 	}
 	module->setDataLayout(m_targetMachine->createDataLayout());
@@ -130,9 +130,9 @@ void Compiler::generateExeFile()
 	bool success = lld::coff::link(linkArgs, stdoutOS, stderrOS, exitEarly, disableOutput);
 
 	if (!success) {
-		std::cerr << "ERROR::LINKER::Linking failed" << std::endl;
+		throw std::runtime_error("ERROR::LINKER::Linking failed");
 	}
-	std::cout << "Executable file generated: "<< pathToExeFile << std::endl;
+	std::cout << "COMPILER::Executable file generated: "<< pathToExeFile << std::endl;
 }
 void Compiler::optimizeModule(llvm::OptimizationLevel optimize)
 {
@@ -168,19 +168,19 @@ void Compiler::generateAsmFile()
 	llvm::raw_fd_ostream dest(pathToAsmFile, EC, llvm::sys::fs::OF_None);
 
 	if (EC) {
-		std::cerr << "ERROR::COMPILER::Could not open file: " << EC.message() << std::endl;
+		throw std::runtime_error("ERROR::COMPILER::Could not open file: " + EC.message());
 		return;
 	}
 
 	llvm::legacy::PassManager pass;
 	if (m_targetMachine->addPassesToEmitFile(pass, dest, nullptr, llvm::CGFT_AssemblyFile)) {
-		std::cerr << "ERROR::COMPILER::TheTargetMachine can't emit a file of this type" << std::endl;
+		throw std::runtime_error("ERROR::COMPILER::TheTargetMachine can't emit a file of this type");
 		return;
 	}
 	
 	pass.run(*module);
 	dest.flush();
-	std::cout << "Assembler file generated: " << pathToAsmFile << std::endl;
+	std::cout << "COMPILER::Assembler file generated: " << pathToAsmFile << std::endl;
 }
 void Compiler::generateObjFile()
 {
@@ -192,19 +192,19 @@ void Compiler::generateObjFile()
 	llvm::raw_fd_ostream dest(pathToObjFile, EC, llvm::sys::fs::OF_None);
 
 	if (EC) {
-		std::cerr << "ERROR::COMPILER::Could not open file: " << EC.message() << std::endl;
+		throw std::runtime_error("ERROR::COMPILER::Could not open file: " + EC.message());
 		return;
 	}
 
 	llvm::legacy::PassManager pass;
 	if (m_targetMachine->addPassesToEmitFile(pass, dest, nullptr, llvm::CGFT_ObjectFile)) {
-		std::cerr << "ERROR::COMPILER::TheTargetMachine can't emit a file of this type" << std::endl;
+		throw std::runtime_error("ERROR::COMPILER::TheTargetMachine can't emit a file of this type");
 		return;
 	}
 
 	pass.run(*module);
 	dest.flush();
-	std::cout << "Object file generated: " << pathToObjFile << std::endl;
+	std::cout << "COMPILER::Object file generated: " << pathToObjFile << std::endl;
 }
 
 std::string Compiler::readFile()
@@ -213,7 +213,7 @@ std::string Compiler::readFile()
 	std::ifstream file(filename);
 	if (!file.is_open())
 	{
-		std::cerr << "Error opening input file: " << filename << std::endl;
+		throw std::runtime_error("ERROR::COMPILER::Error opening input file: " + filename);
 		return "";
 	}
 	std::string code;
@@ -232,7 +232,7 @@ void Compiler::generateIRFile() {
 	std::error_code errorCode;
 	llvm::raw_fd_ostream output(pathToIRFile, errorCode);
 	if (errorCode) {
-		std::cerr << "Error opening output file: " << errorCode.message() << std::endl;
+		throw std::runtime_error("ERROR::COMPILER::Error opening output file: " + errorCode.message());
 		return;
 	}
 	LLVMManager& manager = LLVMManager::getInstance();
@@ -240,7 +240,7 @@ void Compiler::generateIRFile() {
 
 	module->print(output, nullptr);
 	output.close();
-	std::cout << "IR file generated: " << pathToIRFile << std::endl;
+	std::cout << "COMPILER::IR file generated: " << pathToIRFile << std::endl;
 }
 
 void Compiler::writeFile(std::string text,std::string pathTofile)
@@ -248,7 +248,7 @@ void Compiler::writeFile(std::string text,std::string pathTofile)
 	std::ofstream file(pathTofile, std::ios::out | std::ios::trunc);
 	if (!file.is_open())
 	{
-		std::cerr << "ERROR::COMPILER::Error opening output file: " << pathTofile << std::endl;
+		throw std::runtime_error("ERROR::COMPILER::Error opening output file: " +  pathTofile);
 		return;
 	}
 	file << text;
