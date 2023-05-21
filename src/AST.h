@@ -124,6 +124,39 @@ private:
     std::shared_ptr<ASTNode> m_expr;
 };
 
+class ReturnAST : public ASTNode
+{
+public:
+    ReturnAST() = delete;
+    ReturnAST(std::shared_ptr<ASTNode> retExpr)
+        : m_returnExpr(std::move(retExpr)), m_returnBB(nullptr)
+    {
+        if (m_returnExpr)
+        {
+            llvmType = m_returnExpr->llvmType;
+        }
+        else
+        {
+            LLVMManager& manager = LLVMManager::getInstance();
+            auto builder = manager.getBuilder();
+            llvmType = builder->getVoidTy();
+        }
+    }
+    void setReturnBB(llvm::BasicBlock* BB)
+    {
+        m_returnBB = BB;
+    }
+    void setReturnVar(llvm::AllocaInst* var)
+    {
+        m_returnVar = var;
+    }
+    llvm::Value* codegen() override;
+private:
+    std::shared_ptr<ASTNode> m_returnExpr;
+    llvm::BasicBlock* m_returnBB;
+    llvm::AllocaInst* m_returnVar;
+};
+
 class BlockAST : public ASTNode {
 public:
     BlockAST(std::shared_ptr<SymbolTable> symbolTable)
@@ -139,9 +172,9 @@ public:
     {
         m_symbolTable->extend(symbolTable.get());
     }
-    std::vector<std::shared_ptr<ASTNode>> getReturns();
-    llvm::Value* codegen() override;
 
+    std::vector<std::shared_ptr<ReturnAST>> getReturns();
+    llvm::Value* codegen() override;
 private:
     std::vector<std::shared_ptr<ASTNode>> m_stmts;
     std::shared_ptr<SymbolTable> m_symbolTable;
@@ -162,6 +195,7 @@ private:
     llvm::Type* m_retType;
     std::vector<std::pair<TokenType, std::string>> m_args;
     std::shared_ptr<BlockAST> m_body;
+
 };
 
 class ProtFunctionAST : public ASTNode {
@@ -190,22 +224,6 @@ public:
 private:
     std::string m_name;
     std::vector<std::shared_ptr<ASTNode>> m_args;
-};
-
-class ReturnAST : public ASTNode
-{
-public:
-    ReturnAST() = delete;
-    ReturnAST(std::shared_ptr<ASTNode> retExpr)
-        : m_retExpr(std::move(retExpr)) {
-        if (m_retExpr)
-        {
-            llvmType = m_retExpr->llvmType;
-        }
-    }
-    llvm::Value* codegen() override;
-private:
-    std::shared_ptr<ASTNode> m_retExpr;
 };
 
 class IfAST : public ASTNode
@@ -242,4 +260,20 @@ public:
 private:
     llvm::Value* m_value;
     llvm::Type* m_type;
+};
+
+class GotoAST : public ASTNode
+{
+public:
+    GotoAST() = delete;
+    GotoAST(llvm::BasicBlock* gotoBB, llvm::BasicBlock* gotoElseBB = nullptr,llvm::Value* value = nullptr)
+        : m_gotoBB(gotoBB), m_gotoelseBB(gotoElseBB),m_value(m_value)
+    {
+        llvmType = nullptr;
+    }
+    llvm::Value* codegen() override;
+private:
+    llvm::BasicBlock* m_gotoBB;
+    llvm::BasicBlock* m_gotoelseBB;
+    llvm::Value* m_value;
 };

@@ -231,8 +231,7 @@ std::vector<std::shared_ptr<ASTNode>> Parser::parseStatement()
 	case TokenType::If:
 		return { parseIf() };
 	default:
-		std::cerr << "ERROR::PARSER::Unknown Token: " << g_nameTypes[static_cast<int>(m_tokenStream->type)] << std::endl;
-		m_tokenStream++;
+		return { parseExpression() };
 		break;
 	}
 }
@@ -295,10 +294,13 @@ std::shared_ptr<BlockAST> Parser::parseBlock()
 		{
 			block->addStatement(stmt);
 		}
-		std::shared_ptr<IfAST> ast = std::dynamic_pointer_cast<IfAST>(statements[0]);
-		if (ast)
+		if (!statements.empty())
 		{
-			continue;
+			std::shared_ptr<IfAST> ifAST = std::dynamic_pointer_cast<IfAST>(statements[0]);
+			if (ifAST)
+			{
+				continue;
+			}
 		}
 		check({ TokenType::Semicolon });
 		m_tokenStream++;
@@ -399,9 +401,9 @@ std::shared_ptr<ASTNode> Parser::parseFunction()
 std::shared_ptr<ReturnAST> Parser::parseReturn()
 {
 	m_tokenStream++;
-	if (m_tokenStream.next().type == TokenType::Semicolon)
+	if (m_tokenStream->type == TokenType::Semicolon)
 	{
-		std::make_shared<ReturnAST>(nullptr);
+		return std::make_shared<ReturnAST>(nullptr);
 	}
 	return std::make_shared<ReturnAST>(parseExpression());
 }

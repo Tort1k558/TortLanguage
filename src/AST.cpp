@@ -307,13 +307,17 @@ llvm::Value* BlockAST::codegen()
     llvm::Value* lastVal = nullptr;
     for (const auto& stmt : m_stmts) {
         lastVal = stmt->codegen();
+        if (std::dynamic_pointer_cast<ReturnAST>(stmt))
+        {
+            break;
+        }
     }
     return lastVal;
 }
 
-std::vector<std::shared_ptr<ASTNode>> BlockAST::getReturns()
+std::vector<std::shared_ptr<ReturnAST>> BlockAST::getReturns()
 {
-    std::vector<std::shared_ptr<ASTNode>> returns;
+    std::vector<std::shared_ptr<ReturnAST>> returns;
     for (const auto& stmt : m_stmts)
     {
         std::shared_ptr<ReturnAST> returnAST = std::dynamic_pointer_cast<ReturnAST>(stmt);
@@ -397,12 +401,14 @@ llvm::Value* FunctionAST::codegen()
     }
     llvm::Function* func =nullptr;
     func = module->getFunction(m_name);
+    llvm::BasicBlock* returnBB = nullptr;
+    std::vector<std::shared_ptr<ReturnAST>> returns;
     if (func == nullptr)
     {
         llvm::Type* retType;
         if (!m_retType)
         {
-            auto returns = m_body->getReturns();
+            returns = m_body->getReturns();
             if (!returns.empty())
             {
                 retType = returns[0]->llvmType;
@@ -414,18 +420,19 @@ llvm::Value* FunctionAST::codegen()
                         return nullptr;
                     }
                 }
-                if (retType)
-                {
-                    m_retType = retType;
-                }
-                else
-                {
-                    m_retType = llvm::Type::getVoidTy(*context);
-                }
+                m_retType = retType;
             }
             else
             {
                 m_retType = llvm::Type::getVoidTy(*context);
+            }
+            if (returns.size() > 1)
+            {
+                returnBB = llvm::BasicBlock::Create(*context, "returnblock");
+                for (const auto& ret : returns)
+                {
+                    ret->setReturnBB(returnBB);
+                }
             }
         }
         llvm::FunctionType* funcType = llvm::FunctionType::get(m_retType, argTypes, false);
@@ -434,7 +441,17 @@ llvm::Value* FunctionAST::codegen()
 
     llvm::BasicBlock* block = llvm::BasicBlock::Create(*context, "entry", func);
     builder->SetInsertPoint(block);
-    unsigned int i = 0;
+    
+    llvm::AllocaInst* returnVar;
+    if (returnBB && !m_retType->isVoidTy())
+    {
+        returnVar = builder->CreateAlloca(m_retType, nullptr, "retvar");
+        for (const auto& ret : returns)
+        {
+            ret->setReturnVar(returnVar);
+        }
+    }
+    size_t i = 0;
     for (auto& arg : func->args())
     {
         arg.setName("arg"+std::to_string(i));
@@ -445,8 +462,20 @@ llvm::Value* FunctionAST::codegen()
 
     m_body->extendSymbolTable(symbolTableFunc);
     m_body->codegen();
-    
-    if (builder->GetInsertBlock()->getTerminator() == nullptr) 
+    if (returnBB)
+    {
+        returnBB->insertInto(func);
+        builder->SetInsertPoint(returnBB);
+        if (!m_retType->isVoidTy())
+        {
+            builder->CreateRet(builder->CreateLoad(returnVar->getAllocatedType(), returnVar));
+        }
+        else
+        {
+            builder->CreateRetVoid();
+        }
+    }
+    if (builder->GetInsertBlock()->getTerminator() == nullptr)
     {
         if (m_retType->isVoidTy())
         {
@@ -483,14 +512,33 @@ llvm::Value* CallExprAST::codegen()
 
 llvm::Value* ReturnAST::codegen()
 {
-    //Должен быть один на функцию
     LLVMManager& manager = LLVMManager::getInstance();
     auto builder = manager.getBuilder();
     auto context = manager.getContext();
-    llvm::Value* retVal = m_retExpr->codegen();
-    builder->CreateRet(retVal);
 
-    return retVal;
+    if (m_returnBB)
+    {
+        if (m_returnExpr)
+        {
+            llvm::Value* returnValue = m_returnExpr->codegen();
+            builder->CreateStore(returnValue, m_returnVar);
+            builder->CreateBr(m_returnBB);
+        }
+        else
+        {
+            builder->CreateBr(m_returnBB);
+        }
+    }
+    else
+    {
+        if (m_returnExpr)
+        {
+            llvm::Value* retVal = m_returnExpr->codegen();
+            builder->CreateRet(retVal);
+        }
+        builder->CreateRetVoid();
+    }
+    return nullptr;
 
 }
 
@@ -532,8 +580,8 @@ llvm::Value* IfAST::codegen()
     
 
     builder->SetInsertPoint(ifBlock);
+    m_ifBlock->addStatement(std::make_shared<GotoAST>(mergeBlock));
     llvm::Value* ifValue = m_ifBlock->codegen();
-    builder->CreateBr(mergeBlock);
     ifBlock = builder->GetInsertBlock();
     
     //create else if blocks
@@ -568,8 +616,8 @@ llvm::Value* IfAST::codegen()
             elseifBlockHelp = builder->GetInsertBlock();
 
             builder->SetInsertPoint(elseifBlock);
+            m_elseIfs[i].second->addStatement(std::make_shared<GotoAST>(mergeBlock));
             llvm::Value* elseifValue = m_elseIfs[i].second->codegen();
-            builder->CreateBr(mergeBlock);
             elseifBlock = builder->GetInsertBlock();
             
             elseifBlockHelp = nextElseifBlockHelp;
@@ -582,8 +630,8 @@ llvm::Value* IfAST::codegen()
     {
         function->insert(function->end(), elseBlock);
         builder->SetInsertPoint(elseBlock);
+        m_elseBlock->addStatement(std::make_shared<GotoAST>(mergeBlock));
         elseValue = m_elseBlock->codegen();
-        builder->CreateBr(mergeBlock);
 
         elseBlock = builder->GetInsertBlock(); 
 
@@ -615,4 +663,19 @@ llvm::Value* CastAST::codegen()
     {
         std::cerr << "ERROR::AST::Invalid Cast type!" << std::endl;
     }
+}
+
+llvm::Value* GotoAST::codegen()
+{
+    LLVMManager& manager = LLVMManager::getInstance();
+    auto builder = manager.getBuilder();
+    if (m_gotoelseBB && m_value)
+    {
+        builder->CreateCondBr(m_value, m_gotoBB, m_gotoelseBB);
+    }
+    else
+    {
+        builder->CreateBr(m_gotoBB);
+    }
+    return m_value;
 }
