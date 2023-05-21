@@ -239,7 +239,14 @@ std::vector<std::shared_ptr<ASTNode>> Parser::parseStatement()
 std::shared_ptr<ASTNode> Parser::parsePrint()
 {
 	m_tokenStream++;
-	return std::make_shared<ConsoleOutputExprAST>(parseExpression());
+
+	check({ TokenType::OpenParen });
+	m_tokenStream++;
+	std::shared_ptr<ConsoleOutputExprAST> outAST = std::make_shared<ConsoleOutputExprAST>(parseExpression());
+	check({ TokenType::CloseParen });
+	m_tokenStream++;
+
+	return outAST;
 }
 
 std::vector<std::shared_ptr<ASTNode>> Parser::parseVarDecl()
@@ -387,13 +394,14 @@ std::shared_ptr<ASTNode> Parser::parseFunction()
 		auto proto = std::make_shared<ProtFunctionAST>(funcName, getType(retType), args);
 		proto->codegen();
 		SymbolTableManager::getInstance().setSymbolTable(prevSymbolTable);
+		prevSymbolTable->addFunctionReturnType(funcName, proto->llvmType);
 		return proto;
 	}
 	std::shared_ptr<BlockAST> body = parseBlock();
 	auto func = std::make_shared<FunctionAST>(funcName, getType(retType), args, std::move(body));
 	func->codegen();
-
 	SymbolTableManager::getInstance().setSymbolTable(prevSymbolTable);
+	prevSymbolTable->addFunctionReturnType(funcName, func->llvmType);
 	return func;
 
 }

@@ -186,13 +186,40 @@ public:
     FunctionAST(const std::string& name, llvm::Type* retType,
         std::vector<std::pair<TokenType, std::string>> args,
         std::shared_ptr<BlockAST> body)
-        : m_name(name), m_retType(retType), m_args(args), m_body(std::move(body)) {}
+        : m_name(name), m_retType(retType), m_args(args), m_body(std::move(body)) 
+    {
+        LLVMManager& manager = LLVMManager::getInstance();
+        auto context = manager.getContext();
+
+        if (!m_retType)
+        {
+            m_returns = m_body->getReturns();
+            if (!m_returns.empty())
+            {
+                retType = m_returns[0]->llvmType;
+                for (size_t i = 0; i < m_returns.size(); i++)
+                {
+                    if (m_returns[i]->llvmType != retType)
+                    {
+                        throw std::runtime_error("ERROR::The function cannot return different types of values");
+                    }
+                }
+                m_retType = retType;
+            }
+            else
+            {
+                m_retType = llvm::Type::getVoidTy(*context);
+            }
+        }
+        llvmType = m_retType;
+    }
 
     llvm::Value* codegen() override;
 
 private:
     std::string m_name;
     llvm::Type* m_retType;
+    std::vector<std::shared_ptr<ReturnAST>> m_returns;
     std::vector<std::pair<TokenType, std::string>> m_args;
     std::shared_ptr<BlockAST> m_body;
 
@@ -203,7 +230,10 @@ public:
     ProtFunctionAST() = delete;
     ProtFunctionAST(const std::string& name, llvm::Type* retType,
         std::vector<std::pair<TokenType, std::string>> args)
-        : m_name(name), m_retType(retType), m_args(args){}
+        : m_name(name), m_retType(retType), m_args(args)
+    {
+        llvmType = m_retType;
+    }
 
     llvm::Value* codegen() override;
 
@@ -217,7 +247,11 @@ class CallExprAST : public ASTNode {
 public:
     CallExprAST() = delete;
     CallExprAST(const std::string& name, std::vector<std::shared_ptr<ASTNode>> args)
-        : m_name(name), m_args(std::move(args)) { }
+        : m_name(name), m_args(std::move(args)) 
+    {
+        auto symbolTable = SymbolTableManager::getInstance().getSymbolTable();
+        llvmType = symbolTable->getFunctionReturnType(name);
+    }
 
     llvm::Value* codegen() override;
 

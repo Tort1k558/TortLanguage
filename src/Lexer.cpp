@@ -29,7 +29,7 @@ Token Lexer::getNextToken() {
         return getStringLiteral();
     }
     else {
-        throw std::runtime_error("Invalid character: " + current_char);
+        throw std::runtime_error("ERROR::Lexer::Invalid character: " + current_char);
     }
 }
 Token Lexer::getIdentifier() {
@@ -197,7 +197,7 @@ Token Lexer::getStringLiteral() {
     }
 
     if (m_currentPos >= m_input.length()) {
-        throw std::runtime_error("Missing closing quote for string literal");
+        throw std::runtime_error("ERROR::Lexer::Missing closing quote for string literal");
     }
 
     m_currentPos++;

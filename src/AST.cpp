@@ -84,9 +84,6 @@ llvm::Value* AssignExprAST::codegen()
     auto symbolTable = SymbolTableManager::getInstance().getSymbolTable();
 
     llvm::Value* var = symbolTable->getPtrVar(m_varName);
-    if (!var) {
-        throw std::runtime_error("ERROR::AST::Var is not defined");
-    }
     llvm::Value* val = m_val->codegen();
     if (!val) {
         return nullptr;
@@ -395,37 +392,14 @@ llvm::Value* FunctionAST::codegen()
     llvm::Function* func =nullptr;
     func = module->getFunction(m_name);
     llvm::BasicBlock* returnBB = nullptr;
-    std::vector<std::shared_ptr<ReturnAST>> returns;
     if (func == nullptr)
     {
-        llvm::Type* retType;
-        if (!m_retType)
+        if (m_returns.size() > 1)
         {
-            returns = m_body->getReturns();
-            if (!returns.empty())
+            returnBB = llvm::BasicBlock::Create(*context, "returnblock");
+            for (const auto& ret : m_returns)
             {
-                retType = returns[0]->llvmType;
-                for (size_t i = 0; i < returns.size(); i++)
-                {
-                    if (returns[i]->llvmType != retType)
-                    {
-                        throw std::runtime_error("ERROR::The function cannot return different types of values");
-                        return nullptr;
-                    }
-                }
-                m_retType = retType;
-            }
-            else
-            {
-                m_retType = llvm::Type::getVoidTy(*context);
-            }
-            if (returns.size() > 1)
-            {
-                returnBB = llvm::BasicBlock::Create(*context, "returnblock");
-                for (const auto& ret : returns)
-                {
-                    ret->setReturnBB(returnBB);
-                }
+                ret->setReturnBB(returnBB);
             }
         }
         llvm::FunctionType* funcType = llvm::FunctionType::get(m_retType, argTypes, false);
@@ -435,11 +409,11 @@ llvm::Value* FunctionAST::codegen()
     llvm::BasicBlock* block = llvm::BasicBlock::Create(*context, "entry", func);
     builder->SetInsertPoint(block);
     
-    llvm::AllocaInst* returnVar;
+    llvm::AllocaInst* returnVar = nullptr;
     if (returnBB && !m_retType->isVoidTy())
     {
         returnVar = builder->CreateAlloca(m_retType, nullptr, "retvar");
-        for (const auto& ret : returns)
+        for (const auto& ret : m_returns)
         {
             ret->setReturnVar(returnVar);
         }
@@ -529,7 +503,10 @@ llvm::Value* ReturnAST::codegen()
             llvm::Value* retVal = m_returnExpr->codegen();
             builder->CreateRet(retVal);
         }
-        builder->CreateRetVoid();
+        else
+        {
+            builder->CreateRetVoid();
+        }
     }
     return nullptr;
 
@@ -577,7 +554,7 @@ llvm::Value* IfAST::codegen()
     llvm::Value* ifValue = m_ifBlock->codegen();
     ifBlock = builder->GetInsertBlock();
     
-    //create else if blocks
+
     if (!m_elseIfs.empty())
     {
         llvm::BasicBlock* nextElseifBlockHelp = nullptr;
@@ -617,7 +594,7 @@ llvm::Value* IfAST::codegen()
         }
     }
     
-    //create else if exists
+
     llvm::Value* elseValue = nullptr;
     if (m_elseBlock)
     {
