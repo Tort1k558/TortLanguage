@@ -29,7 +29,10 @@ class LLVMValueAST : public ASTNode
 {
 public:
     LLVMValueAST() = delete;
-    LLVMValueAST(llvm::Value* value) : m_value(value){}
+    LLVMValueAST(llvm::Value* value) : m_value(value)
+    {
+        llvmType = value->getType();
+    }
     llvm::Value* codegen() override;
 private:
     llvm::Value* m_value;
@@ -82,6 +85,7 @@ public:
     LiteralExprAST(T value) : m_value(value) {
         LLVMManager& manager = LLVMManager::getInstance();
         std::shared_ptr<llvm::LLVMContext> context = manager.getContext();
+
         if (std::is_same<T, double>::value)
         {
             llvmType = llvm::Type::getDoubleTy(*context);
@@ -186,12 +190,12 @@ public:
     FunctionAST(const std::string& name, llvm::Type* retType,
         std::vector<std::pair<TokenType, std::string>> args,
         std::shared_ptr<BlockAST> body)
-        : m_name(name), m_retType(retType), m_args(args), m_body(std::move(body)) 
+        : m_name(name), m_returnType(retType), m_args(args), m_body(std::move(body))
     {
         LLVMManager& manager = LLVMManager::getInstance();
         auto context = manager.getContext();
 
-        if (!m_retType)
+        if (!m_returnType)
         {
             m_returns = m_body->getReturns();
             if (!m_returns.empty())
@@ -204,21 +208,21 @@ public:
                         throw std::runtime_error("ERROR::The function cannot return different types of values");
                     }
                 }
-                m_retType = retType;
+                m_returnType = retType;
             }
             else
             {
-                m_retType = llvm::Type::getVoidTy(*context);
+                m_returnType = llvm::Type::getVoidTy(*context);
             }
         }
-        llvmType = m_retType;
+        llvmType = m_returnType;
     }
 
     llvm::Value* codegen() override;
 
 private:
     std::string m_name;
-    llvm::Type* m_retType;
+    llvm::Type* m_returnType;
     std::vector<std::shared_ptr<ReturnAST>> m_returns;
     std::vector<std::pair<TokenType, std::string>> m_args;
     std::shared_ptr<BlockAST> m_body;
@@ -230,16 +234,16 @@ public:
     ProtFunctionAST() = delete;
     ProtFunctionAST(const std::string& name, llvm::Type* retType,
         std::vector<std::pair<TokenType, std::string>> args)
-        : m_name(name), m_retType(retType), m_args(args)
+        : m_name(name), m_returnType(retType), m_args(args)
     {
-        llvmType = m_retType;
+        llvmType = m_returnType;
     }
 
     llvm::Value* codegen() override;
 
 private:
     std::string m_name;
-    llvm::Type* m_retType;
+    llvm::Type* m_returnType;
     std::vector<std::pair<TokenType, std::string>> m_args;
 };
 

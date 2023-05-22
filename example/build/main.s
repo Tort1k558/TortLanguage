@@ -50,31 +50,54 @@ div:
 	.p2align	4, 0x90
 main:
 .seh_proc main
-	subq	$56, %rsp
-	leaq	.L__unnamed_1(%rip), %rcx
-	movl	$99999, %edx
-	.seh_stackalloc 56
-	.seh_endprologue
-	movl	$2, 52(%rsp)
-	movl	$1, 48(%rsp)
-	movl	$7, 44(%rsp)
-	callq	printf
+	subq	$40, %rsp
+	leaq	.L__unnamed_1(%rip), %rdx
 	leaq	.L__unnamed_2(%rip), %rcx
-	movl	$5555555, %edx
+	.seh_stackalloc 40
+	.seh_endprologue
+	movb	$1, 39(%rsp)
 	callq	printf
-	movl	44(%rsp), %eax
-	addq	$56, %rsp
+	leaq	.L__unnamed_3(%rip), %rdx
+	leaq	.L__unnamed_4(%rip), %rcx
+	movb	$0, 39(%rsp)
+	callq	printf
+	leaq	.L__unnamed_5(%rip), %rcx
+	movl	$2, %edx
+	callq	printf
+	leaq	.L__unnamed_6(%rip), %rcx
+	movl	$55555, %edx
+	callq	printf
+	xorl	%eax, %eax
+	addq	$40, %rsp
 	retq
 	.seh_endproc
 
 	.section	.rdata,"dr"
-.L__unnamed_3:
-	.asciz	"%d\n"
+.L__unnamed_2:
+	.asciz	"%s"
 
 .L__unnamed_1:
+	.asciz	"true\n"
+
+.L__unnamed_7:
+	.asciz	"false\n"
+
+.L__unnamed_4:
+	.asciz	"%s"
+
+.L__unnamed_8:
+	.asciz	"true\n"
+
+.L__unnamed_3:
+	.asciz	"false\n"
+
+.L__unnamed_9:
 	.asciz	"%d\n"
 
-.L__unnamed_2:
+.L__unnamed_5:
+	.asciz	"%d\n"
+
+.L__unnamed_6:
 	.asciz	"%d\n"
 
 	.globl	_fltused

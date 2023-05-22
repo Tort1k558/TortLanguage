@@ -41,19 +41,30 @@ std::shared_ptr<ASTNode> Parser::parseLiteral()
 {
 	switch (m_tokenStream->type)
 	{
-	case TokenType::IntNumber:
+	case TokenType::IntLiteral:
 	{
 		std::string value = m_tokenStream->value;
 		m_tokenStream++;
 		return std::make_shared<LiteralExprAST<int>>(std::stoi(value));
 	}
-	case TokenType::DoubleNumber:
+	case TokenType::DoubleLiteral:
 	{
 		std::string value = m_tokenStream->value;
 		m_tokenStream++;
 		return std::make_shared<LiteralExprAST<double>>(std::stod(value));
 	}
+	case TokenType::TrueLiteral:
+	{
+		m_tokenStream++;
+		return std::make_shared<LiteralExprAST<bool>>(true);
 	}
+	case TokenType::FalseLiteral:
+	{
+		m_tokenStream++;
+		return std::make_shared<LiteralExprAST<bool>>(false);
+	}
+	}
+	return nullptr;
 }
 
 std::shared_ptr<VarExprAST> Parser::parseVariable()
@@ -176,13 +187,12 @@ std::shared_ptr<ASTNode> Parser::parseFactor()
 		}
 		return parseVariable();
 	}
-	else if (m_tokenStream->type == TokenType::IntNumber || m_tokenStream->type == TokenType::DoubleNumber)
+	else if (checkLiteral().type != TokenType::Invalid)
 	{
 		return parseLiteral();
 	}
 	else
 	{
-		throw std::runtime_error("ERROR::PARSER::Unexpected Token: " + g_nameTypes[static_cast<int>(m_tokenStream->type)]);
 		return nullptr;
 	}
 }
@@ -416,23 +426,7 @@ std::shared_ptr<ReturnAST> Parser::parseReturn()
 	return std::make_shared<ReturnAST>(parseExpression());
 }
 
-Token Parser::check(std::vector<TokenType> types)
-{
-	Token curToken = *m_tokenStream;
-	for (const auto& type : types)
-	{
-		if (curToken.type == type)
-		{
-			return curToken;
-		}
-	}
-	return { TokenType::Invalid };
-}
 
-Token Parser::checkType()
-{
-	return check({ TokenType::Int,TokenType::Double,TokenType::Bool });
-}
 std::shared_ptr<IfAST> Parser::parseIf()
 {
 	m_tokenStream++;
@@ -463,4 +457,27 @@ std::shared_ptr<IfAST> Parser::parseIf()
 		elseBlock = parseBlock();
 	}
 	return std::make_shared<IfAST>(ifExpr, ifBlock, elseBlock, std::move(elseIfs));
+}
+
+Token Parser::check(std::vector<TokenType> types)
+{
+	Token curToken = *m_tokenStream;
+	for (const auto& type : types)
+	{
+		if (curToken.type == type)
+		{
+			return curToken;
+		}
+	}
+	return { TokenType::Invalid };
+}
+
+Token Parser::checkType()
+{
+	return check({ TokenType::Int,TokenType::Double,TokenType::Bool });
+}
+
+Token Parser::checkLiteral()
+{
+	return check({ TokenType::IntLiteral,TokenType::DoubleLiteral,TokenType::TrueLiteral,TokenType::FalseLiteral });
 }

@@ -22,6 +22,7 @@ private:
 
 	Token check(std::vector<TokenType> types);
 	Token checkType();
+	Token checkLiteral();
 	std::shared_ptr<BlockAST> parseBlock();
 	std::vector<std::shared_ptr<ASTNode>> parseStatement();
 	std::shared_ptr<ASTNode> parseLiteral();

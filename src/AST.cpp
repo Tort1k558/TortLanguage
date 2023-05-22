@@ -36,20 +36,20 @@ llvm::Value* VarDeclAST::codegen()
 
     llvm::Type* type = getType(m_type);
     llvm::AllocaInst* alloca = builder->CreateAlloca(type, nullptr, m_name.c_str());
-    llvm::Value* val;
-    if (m_value == nullptr)
+    llvm::Value* value;
+    if (!m_value)
     {
         if (type->isDoubleTy())
         {
-            val = llvm::ConstantFP::get(*context, llvm::APFloat(0.0));
-        }
-        else if (type->isIntegerTy())
-        {
-            val = llvm::ConstantInt::get(llvm::Type::getInt32Ty(*context), 0);
+            value = llvm::ConstantFP::get(*context, llvm::APFloat(0.0));
         }
         else if (type->isIntegerTy(1))
         {
-            val = llvm::ConstantInt::get(llvm::Type::getInt1Ty(*context), false);
+            value = llvm::ConstantInt::get(llvm::Type::getInt1Ty(*context), false);
+        }
+        else if (type->isIntegerTy())
+        {
+            value = llvm::ConstantInt::get(llvm::Type::getInt32Ty(*context), 0);
         }
         else
         {
@@ -58,9 +58,9 @@ llvm::Value* VarDeclAST::codegen()
     }
     else
     {
-        val = m_value->codegen();
+        value = m_value->codegen();
     }
-    builder->CreateStore(val, alloca);
+    builder->CreateStore(value, alloca);
 
     symbolTable->addVar(m_name, alloca);
 
@@ -84,11 +84,11 @@ llvm::Value* AssignExprAST::codegen()
     auto symbolTable = SymbolTableManager::getInstance().getSymbolTable();
 
     llvm::Value* var = symbolTable->getPtrVar(m_varName);
-    llvm::Value* val = m_val->codegen();
-    if (!val) {
+    llvm::Value* value = m_val->codegen();
+    if (!value) {
         return nullptr;
     }
-    builder->CreateStore(val, var);
+    builder->CreateStore(value, var);
 }
 
 template class LiteralExprAST<int>;
@@ -120,27 +120,28 @@ llvm::Value* BinaryExprAST::codegen()
     auto builder = manager.getBuilder();
     auto context = manager.getContext();
     auto module = manager.getModule();
-    llvm::Value* lhsVal = m_lhs->codegen();
-    llvm::Value* rhsVal = m_rhs->codegen();
 
-    if (!lhsVal || !rhsVal) {
+    llvm::Value* lhsValue = m_lhs->codegen();
+    llvm::Value* rhsValue = m_rhs->codegen();
+
+    if (!lhsValue || !rhsValue) {
         return nullptr;
     }
-    llvm::Type* lhsType = lhsVal->getType();
-    llvm::Type* rhsType = rhsVal->getType();
+    llvm::Type* lhsType = lhsValue->getType();
+    llvm::Type* rhsType = rhsValue->getType();
     if (lhsType != rhsType)
     {
-        rhsVal = std::make_shared<CastAST>(rhsVal,lhsType)->codegen();
+        rhsValue = std::make_shared<CastAST>(rhsValue,lhsType)->codegen();
     }
     switch (m_op) {
     case TokenType::Plus:
         if (lhsType->isDoubleTy())
         {
-            return builder->CreateFAdd(lhsVal, rhsVal, "addtmp");
+            return builder->CreateFAdd(lhsValue, rhsValue, "addtmp");
         }
         else if (lhsType->isIntegerTy())
         {
-            return builder->CreateAdd(lhsVal, rhsVal, "addtmp");
+            return builder->CreateAdd(lhsValue, rhsValue, "addtmp");
         }
         else
         {
@@ -149,11 +150,11 @@ llvm::Value* BinaryExprAST::codegen()
     case TokenType::Minus:
         if (lhsType->isDoubleTy())
         {
-            return builder->CreateFSub(lhsVal, rhsVal, "subtmp");
+            return builder->CreateFSub(lhsValue, rhsValue, "subtmp");
         }
         else if (lhsType->isIntegerTy())
         {
-            return builder->CreateSub(lhsVal, rhsVal, "subtmp");
+            return builder->CreateSub(lhsValue, rhsValue, "subtmp");
         }
         else
         {
@@ -162,11 +163,11 @@ llvm::Value* BinaryExprAST::codegen()
     case TokenType::Mul:
         if (lhsType->isDoubleTy())
         {
-            return builder->CreateFMul(lhsVal, rhsVal, "multmp");
+            return builder->CreateFMul(lhsValue, rhsValue, "multmp");
         }
         else if (lhsType->isIntegerTy())
         {
-            return builder->CreateMul(lhsVal, rhsVal, "multmp");
+            return builder->CreateMul(lhsValue, rhsValue, "multmp");
         }
         else
         {
@@ -175,11 +176,11 @@ llvm::Value* BinaryExprAST::codegen()
     case TokenType::Div:
         if (lhsType->isDoubleTy())
         {
-            return builder->CreateFDiv(lhsVal, rhsVal, "divtmp");
+            return builder->CreateFDiv(lhsValue, rhsValue, "divtmp");
         }
         else if (lhsType->isIntegerTy())
         {
-            return builder->CreateSDiv(lhsVal, rhsVal, "divtmp");
+            return builder->CreateSDiv(lhsValue, rhsValue, "divtmp");
         }
         else
         {
@@ -188,11 +189,11 @@ llvm::Value* BinaryExprAST::codegen()
     case TokenType::Less:
         if (lhsType->isDoubleTy())
         {
-            return builder->CreateFCmpULT(lhsVal, rhsVal, "lesstmp");
+            return builder->CreateFCmpULT(lhsValue, rhsValue, "lesstmp");
         }
         else if (lhsType->isIntegerTy())
         {
-            return builder->CreateICmpSLT(lhsVal, rhsVal, "lesstmp");
+            return builder->CreateICmpSLT(lhsValue, rhsValue, "lesstmp");
         }
         else
         {
@@ -201,11 +202,11 @@ llvm::Value* BinaryExprAST::codegen()
     case TokenType::Greater:
         if (lhsType->isDoubleTy())
         {
-            return builder->CreateFCmpUGT(lhsVal, rhsVal, "greatertmp");
+            return builder->CreateFCmpUGT(lhsValue, rhsValue, "greatertmp");
         }
         else if (lhsType->isIntegerTy())
         {
-            return builder->CreateICmpSGT(lhsVal, rhsVal, "greatertmp");
+            return builder->CreateICmpSGT(lhsValue, rhsValue, "greatertmp");
         }
         else
         {
@@ -214,23 +215,27 @@ llvm::Value* BinaryExprAST::codegen()
     case TokenType::Equal:
         if (lhsType->isDoubleTy())
         {
-            return builder->CreateFCmpUEQ(lhsVal, rhsVal, "equaltmp");
+            return builder->CreateFCmpUEQ(lhsValue, rhsValue, "equaltmp");
         }
         else if (lhsType->isIntegerTy())
         {
-            return builder->CreateICmpEQ(lhsVal, rhsVal, "equaltmp");
+            return builder->CreateICmpEQ(lhsValue, rhsValue, "equaltmp");
         }
         else
         {
             throw std::runtime_error("ERROR::AST::Invalid type for binary operation " + lhsType->getStructName().str());
         }
     case TokenType::BitAnd:
-        return builder->CreateAnd(lhsVal, rhsVal, "bitandtmp");
+        return builder->CreateAnd(lhsValue, rhsValue, "bitandtmp");
     case TokenType::BitOr:
-        return builder->CreateOr(lhsVal, rhsVal, "bitortmp");
+        return builder->CreateOr(lhsValue, rhsValue, "bitortmp");
+    case TokenType::And:
+        //return builder->CreateOr(lhsValue, rhsValue, "bitortmp");
+    case TokenType::Or:
+        //return builder->CreateOr(lhsValue, rhsValue, "bitortmp");
     case TokenType::Exponentiation:
         //TODO
-        //return builder->CreateCall(module->getFunction("pow"), {lhsVal, rhsVal});
+        //return builder->CreateCall(module->getFunction("pow"), {lhsValue, rhsValue});
     default:
         throw std::runtime_error("ERROR::AST::Invalid binary operator: " + g_nameTypes[static_cast<int>(m_op)]);
         return nullptr;
@@ -253,40 +258,49 @@ llvm::Value* ConsoleOutputExprAST::codegen()
     }
     if (!printFunc) {
         throw std::runtime_error("Printf function not found");
-        return nullptr;
     }
+    
+    llvm::Value* value = nullptr;
+    if (m_expr)
 
-    llvm::Value* val = m_expr->codegen();
-    if (!val) {
-        return nullptr;
+    {
+        value = m_expr->codegen();
     }
 
     std::string formatStr;
-    llvm::Type* i = val->getType();
-    if (i->isFloatTy() || i->isDoubleTy()) {
-        formatStr = "%f\n";
-    }
-    else if (i->isIntegerTy(1))
+    std::vector<llvm::Value*> printfArgs;
+    if (value)
     {
-        formatStr = "%s\n";
-        llvm::Value* bool_str = builder->CreateGlobalStringPtr("%s");
-        llvm::Value* true_str = builder->CreateGlobalStringPtr("true\n");
-        llvm::Value* false_str = builder->CreateGlobalStringPtr("false\n");
-        llvm::Value* result = builder->CreateSelect(val, true_str, false_str);
-        std::vector<llvm::Value*> printf_args;
-        printf_args.push_back(bool_str);
-        printf_args.push_back(result);
-        return builder->CreateCall(printFunc, printf_args);
+        llvm::Type* i = value->getType();
+        if (i->isFloatTy() || i->isDoubleTy()) {
+            formatStr = "%f\n";
+        }
+        else if (i->isIntegerTy(1))
+        {
+            formatStr = "%s\n";
+            llvm::Value* bool_str = builder->CreateGlobalStringPtr("%s");
+            llvm::Value* true_str = builder->CreateGlobalStringPtr("true\n");
+            llvm::Value* false_str = builder->CreateGlobalStringPtr("false\n");
+            llvm::Value* result = builder->CreateSelect(value, true_str, false_str);
+            printfArgs.push_back(bool_str);
+            printfArgs.push_back(result);
+            return builder->CreateCall(printFunc, printfArgs);
+        }
+        else if (i->isIntegerTy(32))
+        {
+            formatStr = "%d\n";
+        }
     }
-    else if (i->isIntegerTy(32))
+    else
     {
-        formatStr = "%d\n";
+        formatStr = "%s";
+        printfArgs.push_back(builder->CreateGlobalStringPtr(formatStr));
+        printfArgs.push_back(builder->CreateGlobalStringPtr("\n"));
+        return builder->CreateCall(printFunc, printfArgs);
     }
 
-    std::vector<llvm::Value*> printfArgs;
-    llvm::Value* formatStrConst = builder->CreateGlobalStringPtr(formatStr);
-    printfArgs.push_back(formatStrConst);
-    printfArgs.push_back(val);
+    printfArgs.push_back(builder->CreateGlobalStringPtr(formatStr));
+    printfArgs.push_back(value);
 
 
     return builder->CreateCall(printFunc, llvm::ArrayRef<llvm::Value* >(printfArgs));
@@ -363,12 +377,11 @@ llvm::Value* ProtFunctionAST::codegen()
     for (const auto& arg : m_args) {
         argTypes.push_back(getType(arg.first));
     }
-    if (!m_retType)
+    if (!m_returnType)
     {
         throw std::runtime_error("ERROR::AST::The function declaration cannot be specified without the return value type");
-        return nullptr;
     }
-    llvm::FunctionType* funcType = llvm::FunctionType::get(m_retType, argTypes, false);
+    llvm::FunctionType* funcType = llvm::FunctionType::get(m_returnType, argTypes, false);
     llvm::Function* func = llvm::Function::Create(funcType, llvm::Function::ExternalLinkage, m_name, module.get());
 
     unsigned int i = 0;
@@ -402,17 +415,17 @@ llvm::Value* FunctionAST::codegen()
                 ret->setReturnBB(returnBB);
             }
         }
-        llvm::FunctionType* funcType = llvm::FunctionType::get(m_retType, argTypes, false);
+        llvm::FunctionType* funcType = llvm::FunctionType::get(m_returnType, argTypes, false);
         func = llvm::Function::Create(funcType, llvm::Function::ExternalLinkage, m_name, module.get());
     }
 
-    llvm::BasicBlock* block = llvm::BasicBlock::Create(*context, "entry", func);
-    builder->SetInsertPoint(block);
+    llvm::BasicBlock* entryBB = llvm::BasicBlock::Create(*context, "entry", func);
+    builder->SetInsertPoint(entryBB);
     
     llvm::AllocaInst* returnVar = nullptr;
-    if (returnBB && !m_retType->isVoidTy())
+    if (returnBB && !m_returnType->isVoidTy())
     {
-        returnVar = builder->CreateAlloca(m_retType, nullptr, "retvar");
+        returnVar = builder->CreateAlloca(m_returnType, nullptr, "retvar");
         for (const auto& ret : m_returns)
         {
             ret->setReturnVar(returnVar);
@@ -433,7 +446,7 @@ llvm::Value* FunctionAST::codegen()
     {
         returnBB->insertInto(func);
         builder->SetInsertPoint(returnBB);
-        if (!m_retType->isVoidTy())
+        if (!m_returnType->isVoidTy())
         {
             builder->CreateRet(builder->CreateLoad(returnVar->getAllocatedType(), returnVar));
         }
@@ -444,13 +457,13 @@ llvm::Value* FunctionAST::codegen()
     }
     if (builder->GetInsertBlock()->getTerminator() == nullptr)
     {
-        if (m_retType->isVoidTy())
+        if (m_returnType->isVoidTy())
         {
             builder->CreateRetVoid();
         }
         else
         {
-            builder->CreateRet(llvm::Constant::getNullValue(m_retType));
+            builder->CreateRet(llvm::Constant::getNullValue(m_returnType));
         }
     }
     return func;
@@ -526,55 +539,63 @@ llvm::Value* IfAST::codegen()
 
     llvm::Function* function = builder->GetInsertBlock()->getParent();
 
-    llvm::BasicBlock* ifBlock = llvm::BasicBlock::Create(*context, "ifblock", function);
-    llvm::BasicBlock* elseifBlockHelp = nullptr;
-    llvm::BasicBlock* elseBlock = nullptr;
-    llvm::BasicBlock* mergeBlock = llvm::BasicBlock::Create(*context, "mergeblock");
+    llvm::BasicBlock* ifBB= llvm::BasicBlock::Create(*context, "ifblock", function);
+    llvm::BasicBlock* elseifBBHelp = nullptr;
+    llvm::BasicBlock* elseBB= nullptr;
+    llvm::BasicBlock* mergeBB = llvm::BasicBlock::Create(*context, "mergeblock");
     if (!m_elseIfs.empty())
     {
-        elseifBlockHelp = llvm::BasicBlock::Create(*context, "elseifblockhelp");
-        builder->CreateCondBr(condValue, ifBlock, elseifBlockHelp);
+        elseifBBHelp = llvm::BasicBlock::Create(*context, "elseifblockhelp");
+        builder->CreateCondBr(condValue, ifBB, elseifBBHelp);
     }
     if (m_elseBlock)
     {
-        elseBlock = llvm::BasicBlock::Create(*context, "elseblock");
+        elseBB = llvm::BasicBlock::Create(*context, "elseblock");
         if (m_elseIfs.empty())
         {
-            builder->CreateCondBr(condValue, ifBlock, elseBlock);
+            builder->CreateCondBr(condValue, ifBB, elseBB);
         }
     }
-    else
+    else if(!m_elseBlock && m_elseIfs.empty())
     {
-        builder->CreateCondBr(condValue, ifBlock, mergeBlock);
+        builder->CreateCondBr(condValue, ifBB, mergeBB);
     }
     
 
-    builder->SetInsertPoint(ifBlock);
-    m_ifBlock->addStatement(std::make_shared<GotoAST>(mergeBlock));
+    builder->SetInsertPoint(ifBB);
+    m_ifBlock->addStatement(std::make_shared<GotoAST>(mergeBB));
     llvm::Value* ifValue = m_ifBlock->codegen();
-    ifBlock = builder->GetInsertBlock();
+    ifBB = builder->GetInsertBlock();
     
 
     if (!m_elseIfs.empty())
     {
-        llvm::BasicBlock* nextElseifBlockHelp = nullptr;
+        llvm::BasicBlock* nextElseifBBHelp = nullptr;
         for (size_t i = 0; i<m_elseIfs.size();i++)
         {
-            builder->SetInsertPoint(elseifBlockHelp);
-            function->insert(function->end(), elseifBlockHelp);
+            builder->SetInsertPoint(elseifBBHelp);
+            function->insert(function->end(), elseifBBHelp);
 
 
             if (i == m_elseIfs.size() - 1)
             {
-                nextElseifBlockHelp = elseBlock;
+                if (m_elseBlock)
+                {
+                    nextElseifBBHelp = elseBB;
+                }
+                else
+                {
+                    nextElseifBBHelp = mergeBB;
+
+                }
             }
             else
             {
-                nextElseifBlockHelp = llvm::BasicBlock::Create(*context, "elseifblockhelp");
+                nextElseifBBHelp = llvm::BasicBlock::Create(*context, "elseifblockhelp");
             }
 
-            llvm::BasicBlock* elseifBlock = llvm::BasicBlock::Create(*context, "elseifblock");
-            function->insert(function->end(), elseifBlock);
+            llvm::BasicBlock* elseifBB = llvm::BasicBlock::Create(*context, "elseifblock");
+            function->insert(function->end(), elseifBB);
 
 
             llvm::Value* elseifCondValue = m_elseIfs[i].first->codegen();
@@ -582,15 +603,15 @@ llvm::Value* IfAST::codegen()
             {
                 elseifCondValue = std::make_shared<CastAST>(elseifCondValue, builder->getInt1Ty())->codegen();
             }
-            builder->CreateCondBr(elseifCondValue, elseifBlock, nextElseifBlockHelp);
-            elseifBlockHelp = builder->GetInsertBlock();
+            builder->CreateCondBr(elseifCondValue, elseifBB, nextElseifBBHelp);
+            elseifBBHelp = builder->GetInsertBlock();
 
-            builder->SetInsertPoint(elseifBlock);
-            m_elseIfs[i].second->addStatement(std::make_shared<GotoAST>(mergeBlock));
+            builder->SetInsertPoint(elseifBB);
+            m_elseIfs[i].second->addStatement(std::make_shared<GotoAST>(mergeBB));
             llvm::Value* elseifValue = m_elseIfs[i].second->codegen();
-            elseifBlock = builder->GetInsertBlock();
+            elseifBB = builder->GetInsertBlock();
             
-            elseifBlockHelp = nextElseifBlockHelp;
+            elseifBBHelp = nextElseifBBHelp;
         }
     }
     
@@ -598,16 +619,17 @@ llvm::Value* IfAST::codegen()
     llvm::Value* elseValue = nullptr;
     if (m_elseBlock)
     {
-        function->insert(function->end(), elseBlock);
-        builder->SetInsertPoint(elseBlock);
-        m_elseBlock->addStatement(std::make_shared<GotoAST>(mergeBlock));
+        function->insert(function->end(), elseBB);
+        builder->SetInsertPoint(elseBB);
+
+        m_elseBlock->addStatement(std::make_shared<GotoAST>(mergeBB));
         elseValue = m_elseBlock->codegen();
 
-        elseBlock = builder->GetInsertBlock(); 
+        elseBB = builder->GetInsertBlock();
 
     }
-    function->insert(function->end(), mergeBlock);
-    builder->SetInsertPoint(mergeBlock);
+    function->insert(function->end(), mergeBB);
+    builder->SetInsertPoint(mergeBB);
     
     return ifValue;
 }

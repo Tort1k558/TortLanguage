@@ -63,6 +63,14 @@ Token Lexer::getIdentifier() {
     {
         return Token{ TokenType::Bool, identifier };
     }
+    else if (identifier == "true")
+    {
+        return Token{ TokenType::TrueLiteral, identifier };
+    }
+    else if (identifier == "false")
+    {
+        return Token{ TokenType::FalseLiteral, identifier };
+    }
     else if (identifier == "def")
     {
         return Token{ TokenType::Def,identifier };
@@ -89,9 +97,9 @@ Token Lexer::getNumber() {
     }
     if (isFloat)
     {
-        return Token{ TokenType::DoubleNumber, m_input.substr(startPos, m_currentPos - startPos) };
+        return Token{ TokenType::DoubleLiteral, m_input.substr(startPos, m_currentPos - startPos) };
     }
-    return Token{ TokenType::IntNumber, m_input.substr(startPos, m_currentPos - startPos) };
+    return Token{ TokenType::IntLiteral, m_input.substr(startPos, m_currentPos - startPos) };
 }
 Token Lexer::getOperator() {
     size_t startPos = m_currentPos;
