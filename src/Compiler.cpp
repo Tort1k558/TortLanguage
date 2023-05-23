@@ -19,14 +19,22 @@
 
 #include"LLVMManager.h"
 
-Compiler::Compiler(const std::string& pathToInputFile, OptimizationLevel optLevel)
-	: m_optLevel(optLevel)
+Compiler::Compiler()
+	: m_optLevel(OptimizationLevel::O0) 
+{
+
+}
+void Compiler::setInputFile(const std::string& pathToInputFile)
 {
 	std::filesystem::path filePath(pathToInputFile);
 	m_fileName = filePath.filename().stem().string();
 	m_directoryInputFile = filePath.parent_path().string();
 	m_buildDirectory = m_directoryInputFile + "/build";
 	std::filesystem::create_directory(m_buildDirectory);
+}
+void Compiler::setOptimizationLevel(OptimizationLevel optLevel)
+{
+	m_optLevel = optLevel;
 }
 void Compiler::compile()
 {
@@ -49,7 +57,6 @@ void Compiler::compile()
 		tokenStream++;
 	}
 	writeFile(textTokens, m_buildDirectory + "/" + m_fileName + ".tk");
-	generateIRFile();
 	
 	//optimize
 	switch (m_optLevel)
@@ -69,10 +76,10 @@ void Compiler::compile()
 	default:
 		break;
 	}
-	
+	generateIRFile();
+
 	LLVMManager& manager = LLVMManager::getInstance();
 	auto module = manager.getModule();
-
 
 	if (llvm::verifyModule(*module,&llvm::outs()))
 	{
@@ -140,7 +147,7 @@ void Compiler::optimizeModule(llvm::OptimizationLevel optimize)
 	auto module = manager.getModule();
 
 
-	llvm::PassBuilder PB;
+	llvm::PassBuilder PB(m_targetMachine.get());
 
 	llvm::LoopAnalysisManager LAM;
 	llvm::FunctionAnalysisManager FAM;

@@ -25,11 +25,6 @@ void Parser::parse()
 		case TokenType::Def:
 			parseFunction();
 			break;
-		case TokenType::Int:
-		case TokenType::Double:
-		case TokenType::Bool:
-			m_tokenStream++;
-			break;
 		default:
 			throw std::runtime_error("ERROR::PARSER::Unknown Token: " + g_nameTypes[static_cast<int>(m_tokenStream->type)]);
 			m_tokenStream++;
@@ -199,13 +194,11 @@ std::shared_ptr<ASTNode> Parser::parseFactor()
 
 std::shared_ptr<AssignExprAST> Parser::parseAssign()
 {
-	std::shared_ptr<ASTNode> val;
 	std::string varName = check({ TokenType::Identifier }).value;
 	m_tokenStream++;
 	check({ TokenType::Assign });
 	m_tokenStream++;
-	val = parseExpression();
-	return std::make_shared<AssignExprAST>(varName, val);
+	return std::make_shared<AssignExprAST>(varName, parseExpression());
 }
 
 std::vector<std::shared_ptr<ASTNode>> Parser::parseStatement()

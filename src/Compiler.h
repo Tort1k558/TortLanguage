@@ -18,8 +18,10 @@ enum class OptimizationLevel
 class Compiler
 {
 public:
-	Compiler(const std::string& pathToInputFile, OptimizationLevel optLevel = OptimizationLevel::O0);
+	Compiler();
 	void compile();
+	void setInputFile(const std::string& pathToInputFile);
+	void setOptimizationLevel(OptimizationLevel optLevel);
 private:
 	std::string m_directoryInputFile;
 	std::string m_pathToOutputFile;

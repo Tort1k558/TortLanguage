@@ -13,8 +13,53 @@
 #include"src/Compiler.h"
 
 
-int main() {
-    Compiler compiler("example/main.tt");
+int main(int argc, char* argv[]) {
+    Compiler compiler;
+	if (argc < 2)
+	{
+		std::cerr << "You must specify the parameters!" << std::endl;
+		return 0;
+	}
+
+	for (size_t i = 0; i < argc; i++)
+	{
+		if (i == 0)
+		{
+			continue;
+		}
+		std::string parameter(argv[i]);
+		if (parameter == "-O0")
+		{
+			compiler.setOptimizationLevel(OptimizationLevel::O0);
+		}
+		else if (parameter == "-O1")
+		{
+			compiler.setOptimizationLevel(OptimizationLevel::O1);
+		}
+		else if (parameter == "-O2")
+		{
+			compiler.setOptimizationLevel(OptimizationLevel::O2);
+		}
+		else if (parameter == "-O3")
+		{
+			compiler.setOptimizationLevel(OptimizationLevel::O3);
+		}
+		else if (parameter == "-input")
+		{
+			i++;
+			if (i >= argc)
+			{
+				std::cerr << "You must specify the path to input file!" << std::endl;
+				return 0;
+			}
+			compiler.setInputFile(argv[i]);
+		}
+		else
+		{
+			std::cerr << "Unknown parameter!" << std::endl;
+			return 0;
+		}
+	}
 	try
 	{
 		compiler.compile();
