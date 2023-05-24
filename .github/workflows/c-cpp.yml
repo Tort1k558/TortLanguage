@@ -13,17 +13,32 @@ jobs:
     runs-on: windows-latest
 
     steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
     
     - name: Set up MSVC
       uses: microsoft/setup-msbuild@v1.3.1
 
+    - name: Cache LLVM build
+      id: cache-llvm
+      uses: actions/cache@v3
+      with:
+        path: llvm/llvmBuild
+        key: llvm-build-${{ runner.os }}-msvc-${{ hashFiles('llvm/CMakeLists.txt') }}
+    - name: create llvmDir
+      run: |
+        mkdir llvm
+        cd llvm
+        
     - name: Clone LLVM repository
-      uses: actions/checkout@v2
+      if: steps.cache-llvm.outputs.cache-hit != 'true'
+      uses: actions/checkout@v3
       with:
         repository: llvm/llvm-project
         ref: llvmorg-16.0.0
 
     - name: Build LLVM
+      if: steps.cache-llvm.outputs.cache-hit != 'true'
       run: |
         mkdir build
         cd build
@@ -31,7 +46,8 @@ jobs:
         cmake --build . --config Release
 
     - name: Get llvmBuild path
+      if: steps.cache-llvm.outputs.cache-hit != 'true'
       run:
-          mkdir llvmBuild
-          cmake -DCMAKE_INSTALL_PREFIX=/llvmBuild -P cmake_install.cmake
-          echo "##[set-env name=PATH]C:/llvm-project/build/llvmBuild;%PATH%"
+          mkdir ../../llvmBuild
+          cmake -DCMAKE_INSTALL_PREFIX=../../llvmBuild -P cmake_install.cmake
+          echo "##[set-env name=LLVMPATH]/llvmBuild;%LLVMPATH%"
