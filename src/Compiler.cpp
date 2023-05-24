@@ -20,9 +20,8 @@
 #include"LLVMManager.h"
 
 Compiler::Compiler()
-	: m_optLevel(OptimizationLevel::O0) 
+	: m_optLevel(OptimizationLevel::None) 
 {
-
 }
 void Compiler::setInputFile(const std::string& pathToInputFile)
 {
@@ -38,10 +37,12 @@ void Compiler::setOptimizationLevel(OptimizationLevel optLevel)
 }
 void Compiler::compile()
 {
+	LLVMManager& manager = LLVMManager::getInstance();
+	manager.setModule(std::make_shared<llvm::Module>(m_fileName, *manager.getContext()));
 
-	std::string code = readFile();
 
 	//generate IR code
+	std::string code = readFile();
 	auto lexer = std::make_shared<Lexer>(code);
 	TokenStream tokenStream(std::move(lexer));
 	Parser parser(tokenStream);
@@ -78,7 +79,6 @@ void Compiler::compile()
 	}
 	generateIRFile();
 
-	LLVMManager& manager = LLVMManager::getInstance();
 	auto module = manager.getModule();
 
 	if (llvm::verifyModule(*module,&llvm::outs()))

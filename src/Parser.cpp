@@ -8,13 +8,7 @@ using namespace llvm;
 Parser::Parser(TokenStream stream) :
 	m_tokenStream(stream),
 	m_globalSymbolTable(std::make_shared<SymbolTable>())
-{
-	LLVMManager& manager = LLVMManager::getInstance();
-	m_context = manager.getContext();
-	m_module = manager.getModule();
-	m_builder = manager.getBuilder();
-
-}
+{}
 void Parser::parse()
 {
 	SymbolTableManager::getInstance().setSymbolTable(m_globalSymbolTable);
@@ -422,30 +416,27 @@ std::shared_ptr<ReturnAST> Parser::parseReturn()
 
 std::shared_ptr<IfAST> Parser::parseIf()
 {
-	m_tokenStream++;
+	eat(TokenType::If);
 	std::shared_ptr<ASTNode> ifExpr = parseExpression();
-	check({ TokenType::Colon });
-	m_tokenStream++;
+	eat(TokenType::Colon);
 	std::shared_ptr<BlockAST> ifBlock = parseBlock();
 	std::shared_ptr<BlockAST> elseBlock = nullptr;
 	std::vector<std::pair<std::shared_ptr<ASTNode>, std::shared_ptr<BlockAST>>> elseIfs;
 	while (m_tokenStream->type == TokenType::Else && m_tokenStream.next().type == TokenType::If)
 	{
-		m_tokenStream++;
-		m_tokenStream++;
+		eat(TokenType::Else);
+		eat(TokenType::If);
 
 		std::shared_ptr<ASTNode> elseIfExpr = parseExpression();
-		check({ TokenType::Colon });
-		m_tokenStream++;
+		eat(TokenType::Colon);
 
 		std::shared_ptr<BlockAST> elseIfBlock = parseBlock();
 		elseIfs.push_back({elseIfExpr, elseIfBlock});
 	}
 	if (m_tokenStream->type == TokenType::Else)
 	{
-		m_tokenStream++;
-		check({ TokenType::Colon });
-		m_tokenStream++;
+		eat(TokenType::Else);
+		eat(TokenType::Colon);
 
 		elseBlock = parseBlock();
 	}
@@ -473,4 +464,12 @@ Token Parser::checkType()
 Token Parser::checkLiteral()
 {
 	return check({ TokenType::IntLiteral,TokenType::DoubleLiteral,TokenType::TrueLiteral,TokenType::FalseLiteral });
+}
+void Parser::eat(TokenType type)
+{
+	if (m_tokenStream->type != type)
+	{
+		throw std::runtime_error("ERROR::PARSER::Unknown Token: " + g_nameTypes[static_cast<int>(m_tokenStream->type)] + "\nExpected: " + g_nameTypes[static_cast<int>(type)]);
+	}
+	m_tokenStream++;
 }

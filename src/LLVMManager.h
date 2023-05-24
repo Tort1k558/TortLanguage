@@ -22,6 +22,10 @@ public:
 	{
 		return m_module;
 	}
+	void setModule(std::shared_ptr<llvm::Module> module)
+	{
+ 		m_module = module;
+	}
 	~LLVMManager()
 	{
 		m_module.reset();
@@ -31,7 +35,6 @@ public:
 private:
 	LLVMManager()
 		: m_context(std::make_shared<llvm::LLVMContext>()),
-		  m_module(std::make_shared<llvm::Module>("Tort", *m_context)),
 		  m_builder(std::make_shared<llvm::IRBuilder<>>(*m_context)){}
 	LLVMManager(const LLVMManager&) = delete;
 	LLVMManager operator=(const LLVMManager&) = delete;

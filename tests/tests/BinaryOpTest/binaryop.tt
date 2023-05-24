@@ -1,0 +1,22 @@
+def main()
+{
+	int a = 0,b = 10;
+	a + b;
+	a - b;
+	a * b;
+	a / b;
+	a > b;
+	a < b;
+	a == b;
+	a & b;
+	a | b;
+	double c = 5.5, e = 10.9;
+	c + e;
+	c - e;
+	c * e;
+	c / e;
+	c > e;
+	c < e;
+	c == e;
+	return 0;
+}

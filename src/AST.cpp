@@ -118,8 +118,6 @@ llvm::Value* BinaryExprAST::codegen()
 {
     LLVMManager& manager = LLVMManager::getInstance();
     auto builder = manager.getBuilder();
-    auto context = manager.getContext();
-    auto module = manager.getModule();
 
     llvm::Value* lhsValue = m_lhs->codegen();
     llvm::Value* rhsValue = m_rhs->codegen();
@@ -250,7 +248,7 @@ llvm::Value* ConsoleOutputExprAST::codegen()
     auto builder = manager.getBuilder();
     auto symbolTable = SymbolTableManager::getInstance().getSymbolTable();
 
-    static llvm::Function* printFunc;
+    llvm::Function* printFunc = module->getFunction("printf");
     if (!printFunc)
     {
         llvm::FunctionType* printFuncType = llvm::FunctionType::get(llvm::IntegerType::getInt32Ty(*context), llvm::PointerType::get(llvm::IntegerType::getInt8Ty(*context), 0), true);

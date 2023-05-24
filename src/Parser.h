@@ -21,6 +21,7 @@ private:
 	std::shared_ptr<llvm::IRBuilder<>> m_builder;
 
 	Token check(std::vector<TokenType> types);
+	void eat(TokenType type);
 	Token checkType();
 	Token checkLiteral();
 	std::shared_ptr<BlockAST> parseBlock();

@@ -1,0 +1,7 @@
+def main()
+{
+	int a,b,c;
+	double d = 10.0,e,f;
+	bool g = true,h,i =false;
+	return 0;
+}

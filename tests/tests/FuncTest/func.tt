@@ -1,0 +1,13 @@
+
+def double div(double a,double b);
+
+def main()
+{
+	print(div(5.0,25.0));
+	return 0;
+}
+
+def div(double a,double b)
+{
+	return a / b;
+}

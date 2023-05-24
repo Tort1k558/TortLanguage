@@ -9,7 +9,8 @@
 
 enum class OptimizationLevel
 {
-	O0 = 0,
+	None = 0,
+	O0,
 	O1,
 	O2,
 	O3,
