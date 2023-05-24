@@ -13,12 +13,14 @@ jobs:
     runs-on: windows-latest
 
     steps:
+    - name: Clone repository
+      uses: actions/checkout@v2
+    
     - name: Set up MSVC
       uses: microsoft/setup-msbuild@v1.0.2
-
+      
 
     - name: Clone LLVM repository
-      uses: actions/checkout@v2
       with:
         repository: llvm/llvm-project
         ref: llvmorg-16.0.0
