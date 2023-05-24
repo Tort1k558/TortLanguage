@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - name: Set up MSVC
+      uses: microsoft/setup-msbuild@v1.0.2
+
+    - name: Install CMake
+      uses: martinlindhe/winsudo@v0.3.0
+      with:
+        command: choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System'
+
+    - name: Clone LLVM repository
+      uses: actions/checkout@v2
+      with:
+        repository: llvm/llvm-project
+        ref: llvmorg-16.0.0
+
+    - name: Build LLVM
+      run: |
+        cd llvm-project
+        mkdir build
+        cd build
+        cmake -G "Visual Studio 16 2019" -A x64 -DLLVM_ENABLE_PROJECTS="llvm;lld" ../llvm
+        cmake --build . --config Release
+
+    - name: Get llvm-config.cmake path
+      run:
+          mkdir llvmBuild
+          cmake -DCMAKE_INSTALL_PREFIX=/llvmBuild -P cmake_install.cmake
+          echo "##[set-env name=PATH]C:/llvm-project/build/llvmBuild;%PATH%"
