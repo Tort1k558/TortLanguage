@@ -20,9 +20,8 @@ jobs:
       uses: microsoft/setup-msbuild@v1.3.1
     
     - name: List dir
-      run: |
-        cd ..
-        dir
+      run: dir
+      
     - name: Cache LLVM build
       id: cache-llvm
       uses: actions/cache@v3
