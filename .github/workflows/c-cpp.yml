@@ -15,9 +15,7 @@ jobs:
     steps:
     
     - name: Set up MSVC
-      uses: microsoft/setup-msbuild@v1.0.2
-      with:
-          vs-version: 2019
+      uses: microsoft/setup-msbuild@v1.3.1
 
     - name: Clone LLVM repository
       uses: actions/checkout@v2
