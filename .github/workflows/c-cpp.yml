@@ -36,6 +36,8 @@ jobs:
       with:
         repository: llvm/llvm-project
         ref: llvmorg-16.0.0
+    - name: List dir
+      run: dir
 
     - name: Build LLVM
       if: steps.cache-llvm.outputs.cache-hit != 'true'
