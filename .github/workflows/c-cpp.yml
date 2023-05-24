@@ -47,7 +47,7 @@ jobs:
 
     - name: Get llvmBuild path
       if: steps.cache-llvm.outputs.cache-hit != 'true'
-      run:
+      run: |
           mkdir ../../llvmBuild
           cmake -DCMAKE_INSTALL_PREFIX=../../llvmBuild -P cmake_install.cmake
           echo "##[set-env name=LLVMPATH]/llvmBuild;%LLVMPATH%"
