@@ -26,7 +26,7 @@ jobs:
       id: cache-llvm
       uses: actions/cache@v3
       with:
-        path: /llvmBuild
+        path: D:/a/TortLanguage/TortLanguage/llvmBuild
         key: llvm-build-${{ runner.os }}-msvc-${{ hashFiles('llvm/CMakeLists.txt') }}
     - name: create llvmProject
       run: mkdir llvmProject
@@ -35,7 +35,7 @@ jobs:
       if: steps.cache-llvm.outputs.cache-hit != 'true'
       uses: actions/checkout@v3
       with:
-        path: /llvmProject
+        path: D:/a/TortLanguage/TortLanguage/llvmProject
         repository: llvm/llvm-project
         ref: llvmorg-16.0.0
 
@@ -54,5 +54,5 @@ jobs:
     - name: Get llvmBuild path
       if: steps.cache-llvm.outputs.cache-hit != 'true'
       run: |
-          mkdir ../../llvmBuild
-          cmake -DCMAKE_INSTALL_PREFIX=../../llvmBuild -P cmake_install.cmake
+          mkdir D:/a/TortLanguage/TortLanguage/llvmBuild
+          cmake -DCMAKE_INSTALL_PREFIX=D:/a/TortLanguage/TortLanguage/llvmBuild -P cmake_install.cmake
