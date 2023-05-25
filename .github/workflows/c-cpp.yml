@@ -48,9 +48,9 @@ jobs:
     - name: Build LLVM
       if: steps.cache-llvm.outputs.cache-hit != 'true'
       run: |
-        mkdir build
-        cd build
-        cmake -G "Visual Studio 17 2022" -A x64 -DLLVM_ENABLE_PROJECTS="llvm;lld" D:/a/TortLanguage/TortLanguage/llvmBuild/llvm
+        mkdir  D:/a/TortLanguage/TortLanguage/llvmProject/build
+        cd D:/a/TortLanguage/TortLanguage/llvmProject/build
+        cmake -G "Visual Studio 17 2022" -A x64 -DLLVM_ENABLE_PROJECTS="llvm;lld" D:/a/TortLanguage/TortLanguage/llvmProject/llvm
         cmake --build . --config Release
     
     - name: List dir
