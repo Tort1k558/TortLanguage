@@ -30,6 +30,9 @@ jobs:
         key: llvm-build-${{ runner.os }}-msvc-${{ hashFiles('llvm/CMakeLists.txt') }}
     - name: create llvmProject
       run: mkdir llvmProject
+      
+    - name: List dir
+      run: dir
         
     - name: Clone LLVM repository
       if: steps.cache-llvm.outputs.cache-hit != 'true'
@@ -38,14 +41,16 @@ jobs:
         path: D:/a/TortLanguage/TortLanguage/llvmProject
         repository: llvm/llvm-project
         ref: llvmorg-16.0.0
-
+    
+    - name: List dir
+      run: dir
 
     - name: Build LLVM
       if: steps.cache-llvm.outputs.cache-hit != 'true'
       run: |
         mkdir build
         cd build
-        cmake -G "Visual Studio 17 2022" -A x64 -DLLVM_ENABLE_PROJECTS="llvm;lld" ../llvm
+        cmake -G "Visual Studio 17 2022" -A x64 -DLLVM_ENABLE_PROJECTS="llvm;lld" D:/a/TortLanguage/TortLanguage/llvmBuild/llvm
         cmake --build . --config Release
     
     - name: List dir
@@ -56,3 +61,5 @@ jobs:
       run: |
           mkdir D:/a/TortLanguage/TortLanguage/llvmBuild
           cmake -DCMAKE_INSTALL_PREFIX=D:/a/TortLanguage/TortLanguage/llvmBuild -P cmake_install.cmake
+    - name: List dir
+      run: dir
