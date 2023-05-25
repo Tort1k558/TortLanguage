@@ -40,7 +40,6 @@ jobs:
       with:
         path: D:/a/TortLanguage/TortLanguage/llvmProject
         repository: llvm/llvm-project
-        ref: llvmorg-16.0.0
     
     - name: List dir
       run: dir
@@ -70,5 +69,9 @@ jobs:
       
     - name: List dir
       run: dir D:/a/TortLanguage/TortLanguage/build/gtests
-
-    
+      
+    - name: Run tests
+      run: |
+        xcopy D:/a/TortLanguage/TortLanguage/gtests/tests D:/a/TortLanguage/TortLanguage/build/gtests/tests /E /I
+        cd D:/a/TortLanguage/TortLanguage/build/gtests
+        ctest
