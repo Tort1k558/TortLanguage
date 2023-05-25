@@ -27,7 +27,7 @@ jobs:
       uses: actions/cache@v3
       with:
         path: D:/a/TortLanguage/TortLanguage/llvmBuild
-        key: llvm-build-${{ runner.os }}-msvc-${{ hashFiles('llvm/CMakeLists.txt') }}
+        key: llvm-build-${{ runner.os }}
     - name: create llvmProject
       run: mkdir llvmProject
       
