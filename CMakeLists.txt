@@ -2,13 +2,13 @@ cmake_minimum_required(VERSION 3.2)
 
 project(Tort)
 set(CMAKE_CXX_STANDARD 17)
-set(LLVM_DIR C:/Users/Tort1k/Desktop/llvmlibs/lib/cmake/llvm)
-set(LLD_DIR C:/Users/Tort1k/Desktop/llvmlibs/lib/cmake/lld)
-
+set(LLVM_DIR "${CMAKE_CURRENT_SOURCE_DIR}/llvmBuild/lib/cmake/llvm")
+set(LLD_DIR "${CMAKE_CURRENT_SOURCE_DIR}/llvmBuild/lib/cmake/lld")
 
 file(GLOB TARGET_SRC "src/*.cpp" "src/*.h")
 
-add_subdirectory(tests)
+
+add_subdirectory(gtests)
 
 find_package(LLVM REQUIRED CONFIG)
 find_package(LLD REQUIRED CONFIG)
