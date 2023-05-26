@@ -40,6 +40,7 @@ jobs:
       with:
         path: D:/a/TortLanguage/TortLanguage/llvmProject
         repository: llvm/llvm-project
+        ref: llvmorg-16.0.0
     
     - name: List dir
       run: dir
@@ -54,11 +55,13 @@ jobs:
         mkdir D:/a/TortLanguage/TortLanguage/llvmBuild
         cmake -DCMAKE_INSTALL_PREFIX=D:/a/TortLanguage/TortLanguage/llvmBuild -P cmake_install.cmake
         
+        
     - name: List dir
       run: dir D:/a/TortLanguage/TortLanguage/llvmProject/build
       
     - name: Create Project
       run: |
+        curl -o D:/a/TortLanguage/TortLanguage/llvmBuild/lib/cmake/llvm/LLVM-Config.cmake https://raw.githubusercontent.com/llvm/llvm-project/main/llvm/cmake/modules/LLVM-Config.cmake
         mkdir D:/a/TortLanguage/TortLanguage/build
         cd D:/a/TortLanguage/TortLanguage/build
         cmake -G "Visual Studio 17 2022" D:/a/TortLanguage/TortLanguage
