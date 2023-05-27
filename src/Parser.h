@@ -28,6 +28,7 @@ private:
 	std::vector<std::shared_ptr<ASTNode>> parseStatement();
 	std::shared_ptr<ASTNode> parseLiteral();
 	std::shared_ptr<VarExprAST> parseVariable();
+	std::shared_ptr<UnaryExprAST> parseUnary(bool prefix);
 	std::shared_ptr<AssignExprAST> parseAssign();
 	std::shared_ptr<ASTNode> parseFactor();
 	std::shared_ptr<ASTNode> parseExponentiation();

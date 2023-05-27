@@ -37,6 +37,7 @@ TOKEN: [true] Type: TrueLiteral
 TOKEN: [;] Type: Semicolon
 TOKEN: [print] Type: Print
 TOKEN: [(] Type: OpenParen
+TOKEN: [++] Type: Increment
 TOKEN: [a] Type: Identifier
 TOKEN: [)] Type: CloseParen
 TOKEN: [;] Type: Semicolon
@@ -71,6 +72,7 @@ TOKEN: [)] Type: CloseParen
 TOKEN: [;] Type: Semicolon
 TOKEN: [}] Type: BlockStop
 TOKEN: [else] Type: Else
+TOKEN: [:] Type: Colon
 TOKEN: [{] Type: BlockStart
 TOKEN: [print] Type: Print
 TOKEN: [(] Type: OpenParen

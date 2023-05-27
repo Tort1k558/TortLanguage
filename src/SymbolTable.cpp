@@ -131,6 +131,7 @@ llvm::Type* SymbolTable::getFunctionReturnType(const std::string& name)
 	if (std::holds_alternative<NodeFuncTable>(*variant)) {
 		return std::get<NodeFuncTable>(*variant).returnType;
 	}
+	return nullptr;
 }
 
 std::variant<SymbolTable::NodeVarTable, SymbolTable::NodeFuncTable>* SymbolTable::findNode(std::string name)

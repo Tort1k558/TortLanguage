@@ -112,9 +112,17 @@ Token Lexer::getOperator() {
     {
         return Token{ TokenType::Plus, op };
     }
+    else if (op == "++")
+    {
+        return Token{ TokenType::Increment, op };
+    }
     else if (op == "-")
     {
         return Token{ TokenType::Minus, op };
+    }
+    else if (op == "--")
+    {
+        return Token{ TokenType::Decrement, op };
     }
     else if (op == "*")
     {

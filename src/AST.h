@@ -63,6 +63,7 @@ public:
 
 private:
     std::string m_name;
+    llvm::Value* m_location;
 };
 
 class AssignExprAST : public ASTNode {
@@ -117,7 +118,22 @@ private:
     TokenType m_op;
     std::shared_ptr<ASTNode> m_lhs, m_rhs;
 };
+class UnaryExprAST : public ASTNode {
+public:
+    UnaryExprAST() = delete;
+    UnaryExprAST(TokenType op, const std::string& name,bool prefix = false)
+        : m_op(op),m_name(name),m_prefix(prefix)
+    {
+        auto symbolTable = SymbolTableManager::getInstance().getSymbolTable();
+        llvmType = symbolTable->getTypeVar(m_name);
+    }
+    llvm::Value* codegen() override;
 
+private:
+    TokenType m_op;
+    std::string m_name;
+    bool m_prefix;
+};
 class ConsoleOutputExprAST : public ASTNode {
 public:
     ConsoleOutputExprAST() = delete;

@@ -63,6 +63,27 @@ std::shared_ptr<VarExprAST> Parser::parseVariable()
 	return std::make_shared<VarExprAST>(varName);
 }
 
+std::shared_ptr<UnaryExprAST> Parser::parseUnary(bool prefix)
+{
+	TokenType op;
+	std::string varName;
+	if (prefix)
+	{
+		op = m_tokenStream->type;
+		eat(op);
+		varName = m_tokenStream->value;
+		eat(TokenType::Identifier);
+	}
+	else
+	{
+		varName = m_tokenStream->value;
+		eat(TokenType::Identifier);
+		op = m_tokenStream->type;
+		eat(op);
+	}
+	return std::make_shared<UnaryExprAST>(op, varName,prefix);
+}
+
 std::shared_ptr<ASTNode> Parser::parseExpression()
 {
 	return parseLogicalOrExpr();
@@ -162,10 +183,9 @@ std::shared_ptr<ASTNode> Parser::parseFactor()
 {
 	if (m_tokenStream->type == TokenType::OpenParen)
 	{
-		m_tokenStream++;
+		eat(TokenType::OpenParen);
 		std::shared_ptr<ASTNode> expression = parseExpression();
-		check({ TokenType::CloseParen });
-		m_tokenStream++;
+		eat(TokenType::CloseParen);
 		return expression;
 	}
 	else if (m_tokenStream->type == TokenType::Identifier)
@@ -174,7 +194,15 @@ std::shared_ptr<ASTNode> Parser::parseFactor()
 		{
 			return parseCallFunc();
 		}
+		else if (m_tokenStream.next().type == TokenType::Increment || m_tokenStream.next().type == TokenType::Decrement)
+		{
+			return parseUnary(false);
+		}
 		return parseVariable();
+	}
+	else if (m_tokenStream->type == TokenType::Increment || m_tokenStream->type == TokenType::Decrement)
+	{
+		return parseUnary(true);
 	}
 	else if (checkLiteral().type != TokenType::Invalid)
 	{
@@ -231,6 +259,7 @@ std::vector<std::shared_ptr<ASTNode>> Parser::parseStatement()
 		return { parseExpression() };
 		break;
 	}
+	return {};
 }
 
 std::shared_ptr<ASTNode> Parser::parsePrint()

@@ -5,7 +5,6 @@ set(CMAKE_CXX_STANDARD 17)
 
 set(LLVM_DIR "${CMAKE_CURRENT_SOURCE_DIR}/llvmBuild/lib/cmake/llvm")
 set(LLD_DIR "${CMAKE_CURRENT_SOURCE_DIR}/llvmBuild/lib/cmake/lld")
-#set(CMAKE_LIBRARY_PATH ${CMAKE_LIBRARY_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/llvmBuild/lib")
 
 find_package(LLVM REQUIRED CONFIG)
 find_package(LLD REQUIRED CONFIG)

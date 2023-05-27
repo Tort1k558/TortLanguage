@@ -15,7 +15,9 @@
 
 int main(int argc, char* argv[]) {
     Compiler compiler;
-	if (argc < 2)
+	compiler.setInputFile("../example/main.tt");
+	compiler.compile();
+	/*if (argc < 2)
 	{
 		std::cerr << "You must specify the parameters!" << std::endl;
 		return 0;
@@ -67,7 +69,7 @@ int main(int argc, char* argv[]) {
 	catch (const std::exception& e)
 	{
 		std::cout << e.what() << std::endl;
-	}
+	}*/
 
     return 0;
 }

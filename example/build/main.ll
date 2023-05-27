@@ -1,5 +1,5 @@
-; ModuleID = 'Tort'
-source_filename = "Tort"
+; ModuleID = 'main'
+source_filename = "main"
 
 @0 = private unnamed_addr constant [3 x i8] c"%s\00", align 1
 @1 = private unnamed_addr constant [6 x i8] c"true\0A\00", align 1
@@ -10,6 +10,7 @@ source_filename = "Tort"
 @6 = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
 @7 = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
 @8 = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
+@9 = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
 
 define i32 @sum(i32 %arg0, i32 %arg1) {
 entry:
@@ -40,7 +41,9 @@ entry:
   %a = alloca i1, align 1
   store i1 true, ptr %a, align 1
   %0 = load i1, ptr %a, align 1
-  %1 = select i1 %0, ptr @1, ptr @2
+  %incrementtmp = add i1 %0, true
+  store i1 %incrementtmp, ptr %a, align 1
+  %1 = select i1 %incrementtmp, ptr @1, ptr @2
   %2 = call i32 (ptr, ...) @printf(ptr @0, ptr %1)
   store i1 false, ptr %a, align 1
   %3 = load i1, ptr %a, align 1
@@ -60,10 +63,11 @@ elseifblock:                                      ; preds = %elseifblockhelp
   br label %mergeblock
 
 elseblock:                                        ; preds = %elseifblockhelp
+  %8 = call i32 (ptr, ...) @printf(ptr @8, i32 3)
   br label %mergeblock
 
 mergeblock:                                       ; preds = %elseblock, %elseifblock, %ifblock
-  %8 = call i32 (ptr, ...) @printf(ptr @8, i32 55555)
+  %9 = call i32 (ptr, ...) @printf(ptr @9, i32 55555)
   ret i32 0
 }
 

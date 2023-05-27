@@ -5,7 +5,7 @@
 	.endef
 	.globl	@feat.00
 .set @feat.00, 0
-	.file	"Tort"
+	.file	"main"
 	.def	sum;
 	.scl	2;
 	.type	32;
@@ -55,7 +55,7 @@ main:
 	leaq	.L__unnamed_2(%rip), %rcx
 	.seh_stackalloc 40
 	.seh_endprologue
-	movb	$1, 39(%rsp)
+	movb	$0, 39(%rsp)
 	callq	printf
 	leaq	.L__unnamed_3(%rip), %rdx
 	leaq	.L__unnamed_4(%rip), %rcx
@@ -76,10 +76,10 @@ main:
 .L__unnamed_2:
 	.asciz	"%s"
 
-.L__unnamed_1:
+.L__unnamed_7:
 	.asciz	"true\n"
 
-.L__unnamed_7:
+.L__unnamed_1:
 	.asciz	"false\n"
 
 .L__unnamed_4:
@@ -95,6 +95,9 @@ main:
 	.asciz	"%d\n"
 
 .L__unnamed_5:
+	.asciz	"%d\n"
+
+.L__unnamed_10:
 	.asciz	"%d\n"
 
 .L__unnamed_6:

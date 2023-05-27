@@ -8,7 +8,7 @@ def double div(double a,double b);
 def main()
     {
 		bool a = true;
-		print(a);
+		print(++a);
 		a = false;
 		print(a);
 		if 0:
@@ -19,7 +19,7 @@ def main()
 		{
 			print(2);
 		}
-		else
+		else:
 		{
 			print(3);
 		}
