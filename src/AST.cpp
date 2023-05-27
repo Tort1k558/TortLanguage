@@ -23,6 +23,33 @@ llvm::Type* getType(TokenType type)
     }
     throw std::runtime_error("ERROR::UnknownType " + g_nameTypes[static_cast<int>(type)]);
 }
+llvm::Value* castType(llvm::Value* value, llvm::Type* type)
+{
+    LLVMManager& manager = LLVMManager::getInstance();
+    auto builder = manager.getBuilder();
+
+    if (type == value->getType())
+    {
+        return value;
+    }
+    else if (type->isDoubleTy() && value->getType()->isIntegerTy())
+    {
+        return builder->CreateSIToFP(value, type, "sitofptmp");
+    }
+    else if (type->isIntegerTy() && value->getType()->isDoubleTy())
+    {
+        return builder->CreateFPToSI(value, type, "sitofptmp");
+    }
+    else if (type->isIntegerTy(1) && value->getType()->isIntegerTy())
+    {
+        return builder->CreateICmpNE(value, builder->getInt32(0), "i32toi1tmp");
+
+    }
+    else
+    {
+        throw std::runtime_error("ERROR::AST::Invalid Cast type!");
+    }
+}
 llvm::Value* LLVMValueAST::codegen()
 {
     return m_value;
@@ -127,7 +154,7 @@ llvm::Value* BinaryExprAST::codegen()
     case TokenType::Or:
     {
         llvm::Value* lhsValue = m_lhs->codegen();
-        lhsValue = std::make_shared<CastAST>(lhsValue, builder->getInt1Ty())->codegen();
+        lhsValue = castType(lhsValue, builder->getInt1Ty());
 
         llvm::Function* function = builder->GetInsertBlock()->getParent();
 
@@ -136,12 +163,12 @@ llvm::Value* BinaryExprAST::codegen()
         llvm::BasicBlock* mergeBB = llvm::BasicBlock::Create(*context, "mergeblock");
 
 
-        builder->CreateCondBr(CastAST(lhsValue, builder->getInt1Ty()).codegen(), mergeBB, rhsBB);
+        builder->CreateCondBr(castType(lhsValue, builder->getInt1Ty()), mergeBB, rhsBB);
 
         function->insert(function->end(), rhsBB);
         builder->SetInsertPoint(rhsBB);
         llvm::Value* rhsValue = m_rhs->codegen();
-        rhsValue = std::make_shared<CastAST>(rhsValue, builder->getInt1Ty())->codegen();
+        rhsValue = castType(rhsValue, builder->getInt1Ty());
         builder->CreateBr(mergeBB);
         rhsBB = builder->GetInsertBlock();
 
@@ -157,7 +184,7 @@ llvm::Value* BinaryExprAST::codegen()
     case TokenType::And:
     {
         llvm::Value* lhsValue = m_lhs->codegen();
-        lhsValue = std::make_shared<CastAST>(lhsValue, builder->getInt1Ty())->codegen();
+        lhsValue = castType(lhsValue, builder->getInt1Ty());
 
         llvm::Function* function = builder->GetInsertBlock()->getParent();
 
@@ -166,12 +193,12 @@ llvm::Value* BinaryExprAST::codegen()
         llvm::BasicBlock* mergeBB = llvm::BasicBlock::Create(*context, "mergeblock");
 
 
-        builder->CreateCondBr(CastAST(lhsValue, builder->getInt1Ty()).codegen(), rhsBB, mergeBB);
+        builder->CreateCondBr(castType(lhsValue, builder->getInt1Ty()), rhsBB, mergeBB);
 
         function->insert(function->end(), rhsBB);
         builder->SetInsertPoint(rhsBB);
         llvm::Value* rhsValue = m_rhs->codegen();
-        rhsValue = std::make_shared<CastAST>(rhsValue, builder->getInt1Ty())->codegen();
+        rhsValue = castType(rhsValue, builder->getInt1Ty());
         builder->CreateBr(mergeBB);
         rhsBB = builder->GetInsertBlock();
 
@@ -197,7 +224,7 @@ llvm::Value* BinaryExprAST::codegen()
     llvm::Type* rhsType = rhsValue->getType();
     if (lhsType != rhsType)
     {
-        rhsValue = std::make_shared<CastAST>(rhsValue,lhsType)->codegen();
+        rhsValue = castType(rhsValue,lhsType);
     }
     switch (m_op) {
     case TokenType::Plus:
@@ -662,7 +689,7 @@ llvm::Value* IfAST::codegen()
     llvm::Value* condValue = m_ifExpr->codegen();
     if (condValue->getType() != builder->getInt1Ty())
     {
-        condValue = std::make_shared<CastAST>(condValue, builder->getInt1Ty())->codegen();
+        condValue = castType(condValue, builder->getInt1Ty());
     }
 
     llvm::Function* function = builder->GetInsertBlock()->getParent();
@@ -729,7 +756,7 @@ llvm::Value* IfAST::codegen()
             llvm::Value* elseifCondValue = m_elseIfs[i].first->codegen();
             if (elseifCondValue->getType() != builder->getInt1Ty())
             {
-                elseifCondValue = std::make_shared<CastAST>(elseifCondValue, builder->getInt1Ty())->codegen();
+                elseifCondValue = castType(elseifCondValue, builder->getInt1Ty());
             }
             builder->CreateCondBr(elseifCondValue, elseifBB, nextElseifBBHelp);
             elseifBBHelp = builder->GetInsertBlock();
@@ -765,22 +792,29 @@ llvm::Value* CastAST::codegen()
 {
     LLVMManager& manager = LLVMManager::getInstance();
     auto builder = manager.getBuilder();
-    if (m_type == m_value->getType())
-    {
-        return m_value;
-    }
-    else if (m_type->isDoubleTy() && m_value->getType()->isIntegerTy())
-    {
-        return builder->CreateSIToFP(m_value, m_type, "sitofptmp");
-    }
-    else if (m_type->isIntegerTy() && m_value->getType()->isDoubleTy())
-    {
-        return builder->CreateFPToSI(m_value, m_type, "sitofptmp");
-    }
-    else if (m_type->isIntegerTy(1) && m_value->getType()->isIntegerTy())
-    {
-        return builder->CreateICmpNE(m_value, builder->getInt32(0), "i32toi1tmp");
 
+    llvm::Value* value = m_value->codegen();
+    llvm::Type* type = getType(m_type);
+    
+    if (type == value->getType())
+    {
+        return value;
+    }
+    else if (type->isDoubleTy() && value->getType()->isIntegerTy())
+    {
+        return builder->CreateSIToFP(value, type, "sitofptmp");
+    }
+    else if (type->isIntegerTy() && value->getType()->isDoubleTy())
+    {
+        return builder->CreateFPToSI(value, type, "sitofptmp");
+    }
+    else if (type->isIntegerTy(1) && value->getType()->isIntegerTy())
+    {
+        return builder->CreateICmpNE(value, builder->getInt32(0), "i32toi1tmp");
+    }
+    else if (type->isIntegerTy() && value->getType()->isIntegerTy(1))
+    {
+        return builder->CreateIntCast(value,type,false,"i1toi32tmp");
     }
     else
     {

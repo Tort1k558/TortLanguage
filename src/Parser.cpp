@@ -26,6 +26,7 @@ void Parser::parse()
 		}
 	}
 }
+
 std::shared_ptr<ASTNode> Parser::parseLiteral()
 {
 	switch (m_tokenStream->type)
@@ -82,6 +83,20 @@ std::shared_ptr<UnaryExprAST> Parser::parseUnary(bool prefix)
 		eat(op);
 	}
 	return std::make_shared<UnaryExprAST>(op, varName,prefix);
+}
+
+std::shared_ptr<CastAST> Parser::parseCast()
+{
+	eat(TokenType::Cast);
+	eat(TokenType::Less);
+	TokenType castType = checkType().type;
+	eat(castType);
+	eat(TokenType::Greater);
+	eat(TokenType::OpenParen);
+	std::shared_ptr<ASTNode> node = parseExpression();
+	eat(TokenType::CloseParen);
+
+	return std::make_shared<CastAST>(node, castType);
 }
 
 std::shared_ptr<ASTNode> Parser::parseExpression()
@@ -207,6 +222,10 @@ std::shared_ptr<ASTNode> Parser::parseFactor()
 	else if (checkLiteral().type != TokenType::Invalid)
 	{
 		return parseLiteral();
+	}
+	else if (m_tokenStream->type == TokenType::Cast)
+	{
+		return parseCast();
 	}
 	else
 	{

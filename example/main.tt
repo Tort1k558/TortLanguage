@@ -7,8 +7,9 @@ def double div(double a,double b);
 
 def main()
 {
-    int a = 2,b = 1;
-    int c = a or b + 4;
+    int a = ,b = 1;
+    int c = cast<int>(a or b)+4;
+	print(c);
     if a > 0:
     {
     	print(a);
@@ -26,7 +27,6 @@ def main()
     	print(99999);
     }
     print(true);
-	print(c);
     return c;
 }
 

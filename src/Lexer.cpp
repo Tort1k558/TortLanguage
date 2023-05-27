@@ -91,6 +91,10 @@ Token Lexer::getIdentifier() {
     {
         return Token{ TokenType::Print, identifier };
     }
+    else if (identifier == "cast")
+    {
+        return Token{ TokenType::Cast, identifier };
+    }
     return Token{ TokenType::Identifier, identifier };
 }
 Token Lexer::getNumber() {

@@ -305,15 +305,15 @@ class CastAST : public ASTNode
 {
 public:
     CastAST() = delete;
-    CastAST(llvm::Value* value, llvm::Type* type)
+    CastAST(std::shared_ptr<ASTNode> value, TokenType type)
         : m_value(value),m_type(type)
     {
-        llvmType = type;
+        llvmType = getType(type);
     }
     llvm::Value* codegen() override;
 private:
-    llvm::Value* m_value;
-    llvm::Type* m_type;
+    std::shared_ptr<ASTNode> m_value;
+    TokenType m_type;
 };
 
 class GotoAST : public ASTNode
