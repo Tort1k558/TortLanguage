@@ -16,24 +16,17 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v3
     
-    - name: Set up MSVC
-      uses: microsoft/setup-msbuild@v1.3.1
     
-    - name: List dir
-      run: dir
-      
     - name: Cache LLVM build
       id: cache-llvm
       uses: actions/cache@v3
       with:
         path: D:/a/TortLanguage/TortLanguage/llvmBuild
         key: llvm-build-${{ runner.os }}
+    
     - name: create llvmProject
       run: mkdir llvmProject
       
-    - name: List dir
-      run: dir
-        
     - name: Clone LLVM repository
       if: steps.cache-llvm.outputs.cache-hit != 'true'
       uses: actions/checkout@v3
@@ -42,9 +35,6 @@ jobs:
         repository: llvm/llvm-project
         ref: llvmorg-16.0.0
     
-    - name: List dir
-      run: dir
-
     - name: Build LLVM
       if: steps.cache-llvm.outputs.cache-hit != 'true'
       run: |
@@ -54,27 +44,20 @@ jobs:
         cmake --build . --config Release
         mkdir D:/a/TortLanguage/TortLanguage/llvmBuild
         cmake -DCMAKE_INSTALL_PREFIX=D:/a/TortLanguage/TortLanguage/llvmBuild -P cmake_install.cmake
-        
-        
-    - name: List dir
-      run: dir D:/a/TortLanguage/TortLanguage/llvmProject/build
-      
-    - name: Create Project
-      run: |
+        : # The next step is needed because of a bug in the current version
         curl -o D:/a/TortLanguage/TortLanguage/llvmBuild/lib/cmake/llvm/LLVM-Config.cmake https://raw.githubusercontent.com/llvm/llvm-project/main/llvm/cmake/modules/LLVM-Config.cmake
+        
+      
+    - name: Build Project
+      run: |
         mkdir D:/a/TortLanguage/TortLanguage/build
         cd D:/a/TortLanguage/TortLanguage/build
         cmake -G "Visual Studio 17 2022" D:/a/TortLanguage/TortLanguage
         cmake --build . --config Release
         
-    - name: List dir
-      run: dir D:/a/TortLanguage/TortLanguage/build
-      
-    - name: List dir
-      run: dir D:/a/TortLanguage/TortLanguage/build/gtests
       
     - name: Run tests
       run: |
-        xcopy D:/a/TortLanguage/TortLanguage/gtests/tests D:/a/TortLanguage/TortLanguage/build/gtests/tests /E /I
+        xcopy D:\a\TortLanguage\TortLanguage\gtests\tests D:\a\TortLanguage\TortLanguage\build\gtests\tests /E /I
         cd D:/a/TortLanguage/TortLanguage/build/gtests
         ctest
