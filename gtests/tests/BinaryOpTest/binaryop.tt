@@ -10,6 +10,7 @@ def main()
 	a == b;
 	a & b;
 	a | b;
+	
 	double c = 5.5, e = 10.9;
 	c + e;
 	c - e;
@@ -18,5 +19,9 @@ def main()
 	c > e;
 	c < e;
 	c == e;
+	
+	bool f = false, g = true;
+	f and g;
+	f or g;
 	return 0;
 }

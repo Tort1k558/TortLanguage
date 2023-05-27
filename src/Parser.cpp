@@ -92,7 +92,7 @@ std::shared_ptr<ASTNode> Parser::parseLogicalOrExpr()
 {
 	std::shared_ptr<ASTNode> lhs = parseLogicalAndExpr();
 
-	while (m_tokenStream->type == TokenType::BitOr)
+	while (m_tokenStream->type == TokenType::Or)
 	{
 		TokenType op = m_tokenStream->type;
 		m_tokenStream++;
@@ -107,7 +107,7 @@ std::shared_ptr<ASTNode> Parser::parseLogicalAndExpr()
 {
 	std::shared_ptr<ASTNode> lhs = parseCompareExpr();
 
-	while (m_tokenStream->type == TokenType::BitAnd)
+	while (m_tokenStream->type == TokenType::And)
 	{
 		TokenType op = m_tokenStream->type;
 		m_tokenStream++;

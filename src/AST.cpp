@@ -120,6 +120,72 @@ llvm::Value* BinaryExprAST::codegen()
     LLVMManager& manager = LLVMManager::getInstance();
     auto builder = manager.getBuilder();
     auto context = manager.getContext();
+    
+    //for these operators, the code must be generated differently
+    switch (m_op)
+    {
+    case TokenType::Or:
+    {
+        llvm::Value* lhsValue = m_lhs->codegen();
+        lhsValue = std::make_shared<CastAST>(lhsValue, builder->getInt1Ty())->codegen();
+
+        llvm::Function* function = builder->GetInsertBlock()->getParent();
+
+        llvm::BasicBlock* previousBB = builder->GetInsertBlock();
+        llvm::BasicBlock* rhsBB = llvm::BasicBlock::Create(*context, "rhsblock");
+        llvm::BasicBlock* mergeBB = llvm::BasicBlock::Create(*context, "mergeblock");
+
+
+        builder->CreateCondBr(CastAST(lhsValue, builder->getInt1Ty()).codegen(), mergeBB, rhsBB);
+
+        function->insert(function->end(), rhsBB);
+        builder->SetInsertPoint(rhsBB);
+        llvm::Value* rhsValue = m_rhs->codegen();
+        rhsValue = std::make_shared<CastAST>(rhsValue, builder->getInt1Ty())->codegen();
+        builder->CreateBr(mergeBB);
+        rhsBB = builder->GetInsertBlock();
+
+        function->insert(function->end(), mergeBB);
+        builder->SetInsertPoint(mergeBB);
+
+        llvm::PHINode* phiNode = builder->CreatePHI(builder->getInt1Ty(), 2, "orresult");
+        phiNode->addIncoming(lhsValue, previousBB);
+        phiNode->addIncoming(rhsValue, rhsBB);
+
+        return phiNode;
+    }
+    case TokenType::And:
+    {
+        llvm::Value* lhsValue = m_lhs->codegen();
+        lhsValue = std::make_shared<CastAST>(lhsValue, builder->getInt1Ty())->codegen();
+
+        llvm::Function* function = builder->GetInsertBlock()->getParent();
+
+        llvm::BasicBlock* previousBB = builder->GetInsertBlock();
+        llvm::BasicBlock* rhsBB = llvm::BasicBlock::Create(*context, "rhsblock");
+        llvm::BasicBlock* mergeBB = llvm::BasicBlock::Create(*context, "mergeblock");
+
+
+        builder->CreateCondBr(CastAST(lhsValue, builder->getInt1Ty()).codegen(), rhsBB, mergeBB);
+
+        function->insert(function->end(), rhsBB);
+        builder->SetInsertPoint(rhsBB);
+        llvm::Value* rhsValue = m_rhs->codegen();
+        rhsValue = std::make_shared<CastAST>(rhsValue, builder->getInt1Ty())->codegen();
+        builder->CreateBr(mergeBB);
+        rhsBB = builder->GetInsertBlock();
+
+        function->insert(function->end(), mergeBB);
+        builder->SetInsertPoint(mergeBB);
+
+        llvm::PHINode* phiNode = builder->CreatePHI(builder->getInt1Ty(), 2, "orresult");
+        phiNode->addIncoming(lhsValue, previousBB);
+        phiNode->addIncoming(rhsValue, rhsBB);
+
+        return phiNode;
+    }
+    }
+
 
     llvm::Value* lhsValue = m_lhs->codegen();
     llvm::Value* rhsValue = m_rhs->codegen();
@@ -229,17 +295,13 @@ llvm::Value* BinaryExprAST::codegen()
         return builder->CreateAnd(lhsValue, rhsValue, "bitandtmp");
     case TokenType::BitOr:
         return builder->CreateOr(lhsValue, rhsValue, "bitortmp");
-    case TokenType::And:
-        //
-    case TokenType::Or:
-        //
     case TokenType::Exponentiation:
         //TODO
-        //return builder->CreateCall(module->getFunction("pow"), {lhsValue, rhsValue});
+        break;
     default:
         throw std::runtime_error("ERROR::AST::Invalid binary operator: " + g_nameTypes[static_cast<int>(m_op)]);
-        return nullptr;
     }
+    return nullptr;
 }
 llvm::Value* UnaryExprAST::codegen()
 {
@@ -305,6 +367,7 @@ llvm::Value* UnaryExprAST::codegen()
     }
 
     }
+    return nullptr;
 }
 
 llvm::Value* ConsoleOutputExprAST::codegen()
@@ -702,8 +765,11 @@ llvm::Value* CastAST::codegen()
 {
     LLVMManager& manager = LLVMManager::getInstance();
     auto builder = manager.getBuilder();
-
-    if (m_type->isDoubleTy() && m_value->getType()->isIntegerTy())
+    if (m_type == m_value->getType())
+    {
+        return m_value;
+    }
+    else if (m_type->isDoubleTy() && m_value->getType()->isIntegerTy())
     {
         return builder->CreateSIToFP(m_value, m_type, "sitofptmp");
     }

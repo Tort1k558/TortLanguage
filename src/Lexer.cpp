@@ -71,6 +71,14 @@ Token Lexer::getIdentifier() {
     {
         return Token{ TokenType::FalseLiteral, identifier };
     }
+    else if (identifier == "and")
+    {
+        return Token{ TokenType::And, identifier };
+    }
+    else if (identifier == "or")
+    {
+        return Token{ TokenType::Or, identifier };
+    }
     else if (identifier == "def")
     {
         return Token{ TokenType::Def,identifier };
@@ -155,14 +163,6 @@ Token Lexer::getOperator() {
     else if (op == "|")
     {
         return Token{ TokenType::BitOr, op };
-    }
-    else if (op == "&&")
-    {
-        return Token{ TokenType::And, op };
-    }
-    else if (op == "||")
-    {
-        return Token{ TokenType::Or, op };
     }
     else if (op == "**")
     {

@@ -1,34 +1,37 @@
 def sum(int a,int b)
 {
-    return a+b;
+	return a+b;
 }
 
 def double div(double a,double b);
 
 def main()
+{
+    int a = 2,b = 1;
+    int c = a or b + 4;
+    if a > 0:
     {
-		bool a = true;
-		print(++a);
-		a = false;
-		print(a);
-		if 0:
-		{
-			print(1);
-		}
-		else if 2:
-		{
-			print(2);
-		}
-		else:
-		{
-			print(3);
-		}
-		print(55555);
-        return 0;
+    	print(a);
     }
+    else if b < 99:
+    {
+    	print(10);
+    }
+    else if a or b:
+    {
+    	print(9);
+    }
+    else:
+    {
+    	print(99999);
+    }
+    print(true);
+	print(c);
+    return c;
+}
 
 
 def div(double a,double b)
 {
-    return a / b;
+	return a / b;
 }
