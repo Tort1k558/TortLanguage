@@ -330,6 +330,7 @@ llvm::Value* BinaryExprAST::codegen()
     }
     return nullptr;
 }
+
 llvm::Value* UnaryExprAST::codegen()
 {
     LLVMManager& manager = LLVMManager::getInstance();
@@ -463,6 +464,9 @@ llvm::Value* ConsoleOutputExprAST::codegen()
 
 llvm::Value* BlockAST::codegen() 
 {
+    LLVMManager& manager = LLVMManager::getInstance();
+    auto builder = manager.getBuilder();
+
     llvm::Value* lastVal = nullptr;
     for (const auto& stmt : m_stmts) {
         lastVal = stmt->codegen();
@@ -471,6 +475,12 @@ llvm::Value* BlockAST::codegen()
             break;
         }
     }
+    llvm::BasicBlock* lastBB = builder->GetInsertBlock();
+    if (lastBB->empty())
+    {
+        lastBB->removeFromParent();
+    }
+
     return lastVal;
 }
 
@@ -785,7 +795,6 @@ llvm::Value* IfAST::codegen()
     }
     function->insert(function->end(), mergeBB);
     builder->SetInsertPoint(mergeBB);
-    
     return ifValue;
 }
 llvm::Value* CastAST::codegen()

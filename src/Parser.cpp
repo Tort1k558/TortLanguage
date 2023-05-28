@@ -444,6 +444,7 @@ std::shared_ptr<ASTNode> Parser::parseFunction()
 	}
 	std::shared_ptr<BlockAST> body = parseBlock();
 	auto func = std::make_shared<FunctionAST>(funcName, getType(retType), args, std::move(body));
+	func->doSemantic();
 	func->codegen();
 	SymbolTableManager::getInstance().setSymbolTable(prevSymbolTable);
 	prevSymbolTable->addFunctionReturnType(funcName, func->llvmType);

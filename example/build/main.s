@@ -24,6 +24,40 @@ sum:
 	retq
 	.seh_endproc
 
+	.def	fact;
+	.scl	2;
+	.type	32;
+	.endef
+	.globl	fact
+	.p2align	4, 0x90
+fact:
+.seh_proc fact
+	subq	$40, %rsp
+	.seh_stackalloc 40
+	.seh_endprologue
+	movl	%ecx, 32(%rsp)
+	testl	%ecx, %ecx
+	sete	%al
+	je	.LBB1_2
+	cmpl	$1, 32(%rsp)
+	sete	%al
+.LBB1_2:
+	testb	%al, %al
+	je	.LBB1_4
+	movl	$1, 36(%rsp)
+	jmp	.LBB1_5
+.LBB1_4:
+	movl	32(%rsp), %ecx
+	decl	%ecx
+	callq	fact
+	imull	32(%rsp), %eax
+	movl	%eax, 36(%rsp)
+.LBB1_5:
+	movl	36(%rsp), %eax
+	addq	$40, %rsp
+	retq
+	.seh_endproc
+
 	.def	div;
 	.scl	2;
 	.type	32;
@@ -51,54 +85,49 @@ div:
 main:
 .seh_proc main
 	subq	$56, %rsp
-	xorl	%eax, %eax
+	movb	$1, %al
 	.seh_stackalloc 56
 	.seh_endprologue
-	movl	$0, 48(%rsp)
+	movl	$2, 48(%rsp)
 	movl	$1, 44(%rsp)
 	testb	%al, %al
-	jne	.LBB2_2
+	jne	.LBB3_2
 	cmpl	$0, 44(%rsp)
 	setne	%al
-.LBB2_2:
+.LBB3_2:
 	movzbl	%al, %edx
 	leaq	.L__unnamed_1(%rip), %rcx
 	orl	$4, %edx
 	movl	%edx, 52(%rsp)
 	callq	printf
 	cmpl	$0, 48(%rsp)
-	jle	.LBB2_4
-	movl	48(%rsp), %edx
-	leaq	.L__unnamed_2(%rip), %rcx
-	jmp	.LBB2_11
-.LBB2_4:
-	cmpl	$98, 44(%rsp)
-	jg	.LBB2_7
-	leaq	.L__unnamed_3(%rip), %rcx
-	movl	$10, %edx
-	jmp	.LBB2_11
-.LBB2_7:
+	jg	.LBB3_9
+	cmpl	$99, 44(%rsp)
+	jl	.LBB3_9
 	cmpl	$0, 48(%rsp)
 	setne	%al
-	je	.LBB2_8
+	je	.LBB3_5
 	testb	%al, %al
-	je	.LBB2_10
-.LBB2_6:
-	leaq	.L__unnamed_4(%rip), %rcx
+	je	.LBB3_7
+.LBB3_10:
+	leaq	.L__unnamed_2(%rip), %rcx
 	movl	$9, %edx
-	jmp	.LBB2_11
-.LBB2_8:
+	jmp	.LBB3_8
+.LBB3_5:
 	cmpl	$0, 44(%rsp)
 	setne	%al
 	testb	%al, %al
-	jne	.LBB2_6
-.LBB2_10:
-	leaq	.L__unnamed_5(%rip), %rcx
+	jne	.LBB3_10
+.LBB3_7:
+	leaq	.L__unnamed_3(%rip), %rcx
 	movl	$99999, %edx
-.LBB2_11:
+.LBB3_8:
 	callq	printf
-	leaq	.L__unnamed_6(%rip), %rcx
-	leaq	.L__unnamed_7(%rip), %rdx
+.LBB3_9:
+	movl	$5, %ecx
+	callq	fact
+	leaq	.L__unnamed_4(%rip), %rcx
+	movl	%eax, %edx
 	callq	printf
 	movl	52(%rsp), %eax
 	addq	$56, %rsp
@@ -117,17 +146,5 @@ main:
 
 .L__unnamed_4:
 	.asciz	"%d\n"
-
-.L__unnamed_5:
-	.asciz	"%d\n"
-
-.L__unnamed_6:
-	.asciz	"%s"
-
-.L__unnamed_7:
-	.asciz	"true\n"
-
-.L__unnamed_8:
-	.asciz	"false\n"
 
 	.globl	_fltused

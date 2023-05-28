@@ -84,7 +84,6 @@ void Compiler::compile()
 	if (llvm::verifyModule(*module,&llvm::outs()))
 	{
 		throw std::runtime_error("ERROR::COMPILER::Module is not correct");
-		return;
 	}
 	
 	//initilize targetMachine

@@ -23,6 +23,7 @@ public:
     llvm::Type* llvmType = nullptr;
     virtual ~ASTNode() = default;
     virtual llvm::Value* codegen() = 0;
+    virtual void doSemantic() = 0;
 };
 
 class LLVMValueAST : public ASTNode
@@ -30,8 +31,10 @@ class LLVMValueAST : public ASTNode
 public:
     LLVMValueAST() = delete;
     LLVMValueAST(llvm::Value* value) : m_value(value)
+    {}
+    void doSemantic() override
     {
-        llvmType = value->getType();
+        llvmType = m_value->getType();
     }
     llvm::Value* codegen() override;
 private:
@@ -42,11 +45,12 @@ class VarDeclAST : public ASTNode {
 public:
     VarDeclAST() = delete;
     VarDeclAST(const std::string& name, std::shared_ptr<ASTNode> value,TokenType type)
-        : m_name(name), m_value(std::move(value)),m_type(type) {
+        : m_name(name), m_value(std::move(value)),m_type(type) {}
+    void doSemantic() override
+    {
         auto symbolTable = SymbolTableManager::getInstance().getSymbolTable();
-        symbolTable->addVarType(m_name, getType(type));
+        symbolTable->addVarType(m_name, getType(m_type));
     }
-
     llvm::Value* codegen() override;
 private:
     std::string m_name;
@@ -57,10 +61,13 @@ private:
 class VarExprAST : public ASTNode {
 public:
     VarExprAST() = delete;
-    VarExprAST(std::string name) : m_name(std::move(name)) { llvmType = SymbolTableManager::getInstance().getSymbolTable()->getTypeVar(m_name); }
+    VarExprAST(std::string name) : m_name(std::move(name)) { }
 
+    void doSemantic() override
+    {
+        llvmType = SymbolTableManager::getInstance().getSymbolTable()->getTypeVar(m_name);
+    }
     llvm::Value* codegen() override;
-
 private:
     std::string m_name;
     llvm::Value* m_location;
@@ -72,6 +79,10 @@ public:
     AssignExprAST(const std::string& varName, std::shared_ptr<ASTNode> val)
         : m_varName(varName), m_val(std::move(val)) {}
 
+    void doSemantic() override
+    {
+
+    }
     llvm::Value* codegen() override;
 
 private:
@@ -83,7 +94,10 @@ template<typename T>
 class LiteralExprAST : public ASTNode {
 public:
     LiteralExprAST() = delete;
-    LiteralExprAST(T value) : m_value(value) {
+    LiteralExprAST(T value) : m_value(value) {}
+
+    void doSemantic() override
+    {
         LLVMManager& manager = LLVMManager::getInstance();
         std::shared_ptr<llvm::LLVMContext> context = manager.getContext();
 
@@ -109,11 +123,13 @@ class BinaryExprAST : public ASTNode {
 public:
     BinaryExprAST() = delete;
     BinaryExprAST(TokenType op, std::shared_ptr<ASTNode> lhs, std::shared_ptr<ASTNode> rhs)
-        : m_op(op), m_lhs(std::move(lhs)), m_rhs(std::move(rhs)) {
+        : m_op(op), m_lhs(std::move(lhs)), m_rhs(std::move(rhs)) {}
+    void doSemantic() override
+    {
+        m_lhs->doSemantic();
         llvmType = m_lhs->llvmType;
     }
     llvm::Value* codegen() override;
-
 private:
     TokenType m_op;
     std::shared_ptr<ASTNode> m_lhs, m_rhs;
@@ -122,7 +138,8 @@ class UnaryExprAST : public ASTNode {
 public:
     UnaryExprAST() = delete;
     UnaryExprAST(TokenType op, const std::string& name,bool prefix = false)
-        : m_op(op),m_name(name),m_prefix(prefix)
+        : m_op(op),m_name(name),m_prefix(prefix) {}
+    void doSemantic() override
     {
         auto symbolTable = SymbolTableManager::getInstance().getSymbolTable();
         llvmType = symbolTable->getTypeVar(m_name);
@@ -139,6 +156,12 @@ public:
     ConsoleOutputExprAST() = delete;
     ConsoleOutputExprAST(std::shared_ptr<ASTNode> expr)
         : m_expr(std::move(expr)) {}
+    void doSemantic() override
+    {
+        LLVMManager& manager = LLVMManager::getInstance();
+        auto builder = manager.getBuilder();
+        llvmType = builder->getVoidTy();
+    }
     llvm::Value* codegen() override;
 private:
     std::shared_ptr<ASTNode> m_expr;
@@ -149,10 +172,12 @@ class ReturnAST : public ASTNode
 public:
     ReturnAST() = delete;
     ReturnAST(std::shared_ptr<ASTNode> retExpr)
-        : m_returnExpr(std::move(retExpr)), m_returnBB(nullptr)
+        : m_returnExpr(std::move(retExpr)), m_returnBB(nullptr) {}
+    void doSemantic() override
     {
         if (m_returnExpr)
         {
+            m_returnExpr->doSemantic();
             llvmType = m_returnExpr->llvmType;
         }
         else
@@ -169,6 +194,10 @@ public:
     void setReturnVar(llvm::AllocaInst* var)
     {
         m_returnVar = var;
+    }
+    std::shared_ptr<ASTNode> getReturnExpr()
+    {
+        return m_returnExpr;
     }
     llvm::Value* codegen() override;
 private:
@@ -194,10 +223,43 @@ public:
     }
 
     std::vector<std::shared_ptr<ReturnAST>> getReturns();
+    void doSemantic() override
+    {
+        for (const auto& stmt : m_stmts)
+        {
+            std::shared_ptr<ReturnAST> retAST = std::dynamic_pointer_cast<ReturnAST>(stmt);
+            if (retAST)
+            {
+                continue;
+            }
+            stmt->doSemantic();
+        }
+    }
     llvm::Value* codegen() override;
 private:
     std::vector<std::shared_ptr<ASTNode>> m_stmts;
     std::shared_ptr<SymbolTable> m_symbolTable;
+};
+
+class CallExprAST : public ASTNode {
+public:
+    CallExprAST() = delete;
+    CallExprAST(const std::string& name, std::vector<std::shared_ptr<ASTNode>> args)
+        : m_name(name), m_args(std::move(args)) {}
+    virtual void doSemantic()
+    {
+        auto symbolTable = SymbolTableManager::getInstance().getSymbolTable();
+        llvmType = symbolTable->getFunctionReturnType(m_name);
+    }
+    std::string getNameCallFunction()
+    {
+        return m_name;
+    }
+    llvm::Value* codegen() override;
+
+private:
+    std::string m_name;
+    std::vector<std::shared_ptr<ASTNode>> m_args;
 };
 
 class FunctionAST : public ASTNode {
@@ -207,16 +269,47 @@ public:
         std::vector<std::pair<TokenType, std::string>> args,
         std::shared_ptr<BlockAST> body)
         : m_name(name), m_returnType(retType), m_args(args), m_body(std::move(body))
+    {}
+    void doSemantic() override
     {
         LLVMManager& manager = LLVMManager::getInstance();
         auto context = manager.getContext();
+        m_body->doSemantic();
 
         if (!m_returnType)
         {
             m_returns = m_body->getReturns();
             if (!m_returns.empty())
             {
-                retType = m_returns[0]->llvmType;
+                std::vector<std::shared_ptr<ReturnAST>> returnRecursion;
+
+                for (const auto& ret : m_returns)
+                {
+                    std::shared_ptr<CallExprAST> callExpr = std::dynamic_pointer_cast<CallExprAST>(ret->getReturnExpr());
+                    if (callExpr)
+                    {
+                        if (callExpr->getNameCallFunction() == m_name)
+                        {
+                            returnRecursion.push_back(ret);
+                            continue;
+                        }
+                    }
+                    ret->doSemantic();
+                    auto symbolTable = SymbolTableManager::getInstance().getSymbolTable();
+                    symbolTable->addFunctionReturnType(m_name, ret->llvmType);
+                }
+
+                if (returnRecursion.size() == m_returns.size())
+                {
+                    throw std::runtime_error("ERROR::Could not determine the type of the returned function");
+                }
+
+                for (const auto& ret : returnRecursion)
+                {
+                    ret->doSemantic();
+                }
+                
+                llvm::Type* retType = m_returns[0]->llvmType;
                 for (size_t i = 0; i < m_returns.size(); i++)
                 {
                     if (m_returns[i]->llvmType != retType)
@@ -233,7 +326,6 @@ public:
         }
         llvmType = m_returnType;
     }
-
     llvm::Value* codegen() override;
 
 private:
@@ -250,11 +342,11 @@ public:
     ProtFunctionAST() = delete;
     ProtFunctionAST(const std::string& name, llvm::Type* retType,
         std::vector<std::pair<TokenType, std::string>> args)
-        : m_name(name), m_returnType(retType), m_args(args)
+        : m_name(name), m_returnType(retType), m_args(args) {}
+    void doSemantic() override
     {
         llvmType = m_returnType;
     }
-
     llvm::Value* codegen() override;
 
 private:
@@ -263,35 +355,30 @@ private:
     std::vector<std::pair<TokenType, std::string>> m_args;
 };
 
-class CallExprAST : public ASTNode {
-public:
-    CallExprAST() = delete;
-    CallExprAST(const std::string& name, std::vector<std::shared_ptr<ASTNode>> args)
-        : m_name(name), m_args(std::move(args)) 
-    {
-        auto symbolTable = SymbolTableManager::getInstance().getSymbolTable();
-        llvmType = symbolTable->getFunctionReturnType(name);
-    }
-
-    llvm::Value* codegen() override;
-
-private:
-    std::string m_name;
-    std::vector<std::shared_ptr<ASTNode>> m_args;
-};
-
 class IfAST : public ASTNode
 {
 public:
     IfAST() = delete;
     IfAST(std::shared_ptr<ASTNode> ifExpr,std::shared_ptr<BlockAST> ifBlock, std::shared_ptr<BlockAST> elseBlock = nullptr, std::vector<std::pair<std::shared_ptr<ASTNode>, std::shared_ptr<BlockAST>>> elseIfs = {})
         : m_ifExpr(ifExpr), m_ifBlock(ifBlock),m_elseBlock(elseBlock), m_elseIfs(elseIfs)
-    {
-        llvmType = ifExpr->llvmType;
-    }
+    {}
     std::shared_ptr<BlockAST> getIfBlock(){ return m_ifBlock; }
     std::shared_ptr<BlockAST> getElseBlock(){ return m_elseBlock; }
     std::vector<std::pair<std::shared_ptr<ASTNode>, std::shared_ptr<BlockAST>>> getElseIfs(){ return m_elseIfs; }
+    void doSemantic() override
+    {
+        m_ifExpr->doSemantic();
+        m_ifBlock->doSemantic();
+        for (const auto& block : m_elseIfs)
+        {
+            block.second->doSemantic();
+        }
+        if (m_elseBlock)
+        {
+            m_elseBlock->doSemantic();
+        }
+        llvmType = m_ifExpr->llvmType;
+    }
     llvm::Value* codegen() override;
 private:
     std::shared_ptr<ASTNode> m_ifExpr;
@@ -306,9 +393,10 @@ class CastAST : public ASTNode
 public:
     CastAST() = delete;
     CastAST(std::shared_ptr<ASTNode> value, TokenType type)
-        : m_value(value),m_type(type)
+        : m_value(value), m_type(type) {}
+    void doSemantic() override
     {
-        llvmType = getType(type);
+        llvmType = getType(m_type);
     }
     llvm::Value* codegen() override;
 private:
@@ -321,9 +409,10 @@ class GotoAST : public ASTNode
 public:
     GotoAST() = delete;
     GotoAST(llvm::BasicBlock* gotoBB, llvm::BasicBlock* gotoElseBB = nullptr,llvm::Value* value = nullptr)
-        : m_gotoBB(gotoBB), m_gotoelseBB(gotoElseBB),m_value(m_value)
+        : m_gotoBB(gotoBB), m_gotoelseBB(gotoElseBB),m_value(m_value) {}
+    virtual void doSemantic()
     {
-        llvmType = nullptr;
+        
     }
     llvm::Value* codegen() override;
 private:
