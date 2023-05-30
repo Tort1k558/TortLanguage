@@ -39,6 +39,7 @@ def main()
     	print(99999);
     }
     print(fact(5));
+	print(2|1);
     return c;
 }
 

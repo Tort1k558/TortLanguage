@@ -37,7 +37,9 @@ private:
 	std::shared_ptr<ASTNode> parsePlusMinus();
 	std::shared_ptr<ASTNode> parseCompareExpr();
 	std::shared_ptr<ASTNode> parseLogicalAndExpr();
-	std::shared_ptr<ASTNode> Parser::parseLogicalOrExpr();
+	std::shared_ptr<ASTNode> parseLogicalOrExpr();
+	std::shared_ptr<ASTNode> parseBitOrExpr();
+	std::shared_ptr<ASTNode> parseBitAndExpr();
 	std::shared_ptr<ASTNode> parseExpression();
 	std::vector<std::shared_ptr<ASTNode>> parseVarDecl();
 	std::shared_ptr<ASTNode> parseFunction();

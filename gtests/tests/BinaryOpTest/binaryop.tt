@@ -23,5 +23,6 @@ def main()
 	bool f = false, g = true;
 	f and g;
 	f or g;
+	
 	return 0;
 }

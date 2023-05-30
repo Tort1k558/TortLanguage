@@ -34,23 +34,23 @@ std::shared_ptr<ASTNode> Parser::parseLiteral()
 	case TokenType::IntLiteral:
 	{
 		std::string value = m_tokenStream->value;
-		m_tokenStream++;
+		eat(TokenType::IntLiteral);
 		return std::make_shared<LiteralExprAST<int>>(std::stoi(value));
 	}
 	case TokenType::DoubleLiteral:
 	{
 		std::string value = m_tokenStream->value;
-		m_tokenStream++;
+		eat(TokenType::DoubleLiteral);
 		return std::make_shared<LiteralExprAST<double>>(std::stod(value));
 	}
 	case TokenType::TrueLiteral:
 	{
-		m_tokenStream++;
+		eat(TokenType::TrueLiteral);
 		return std::make_shared<LiteralExprAST<bool>>(true);
 	}
 	case TokenType::FalseLiteral:
 	{
-		m_tokenStream++;
+		eat(TokenType::FalseLiteral);
 		return std::make_shared<LiteralExprAST<bool>>(false);
 	}
 	}
@@ -60,7 +60,7 @@ std::shared_ptr<ASTNode> Parser::parseLiteral()
 std::shared_ptr<VarExprAST> Parser::parseVariable()
 {
 	std::string varName = check({TokenType::Identifier}).value;
-	m_tokenStream++;
+	eat(TokenType::Identifier);
 	return std::make_shared<VarExprAST>(varName);
 }
 
@@ -110,7 +110,7 @@ std::shared_ptr<ASTNode> Parser::parseLogicalOrExpr()
 	while (m_tokenStream->type == TokenType::Or)
 	{
 		TokenType op = m_tokenStream->type;
-		m_tokenStream++;
+		eat(op);
 
 		std::shared_ptr<ASTNode> rhs = parseLogicalAndExpr();
 		lhs = std::make_shared<BinaryExprAST>(op, lhs, rhs);
@@ -120,12 +120,42 @@ std::shared_ptr<ASTNode> Parser::parseLogicalOrExpr()
 }
 std::shared_ptr<ASTNode> Parser::parseLogicalAndExpr()
 {
-	std::shared_ptr<ASTNode> lhs = parseCompareExpr();
+	std::shared_ptr<ASTNode> lhs = parseBitOrExpr();
 
 	while (m_tokenStream->type == TokenType::And)
 	{
 		TokenType op = m_tokenStream->type;
-		m_tokenStream++;
+		eat(op);
+
+		std::shared_ptr<ASTNode> rhs = parseBitOrExpr();
+		lhs = std::make_shared<BinaryExprAST>(op, lhs, rhs);
+	}
+
+	return lhs;
+}
+std::shared_ptr<ASTNode> Parser::parseBitOrExpr()
+{
+	std::shared_ptr<ASTNode> lhs = parseBitAndExpr();
+
+	while (m_tokenStream->type == TokenType::BitOr)
+	{
+		TokenType op = m_tokenStream->type;
+		eat(op);
+
+		std::shared_ptr<ASTNode> rhs = parseBitAndExpr();
+		lhs = std::make_shared<BinaryExprAST>(op, lhs, rhs);
+	}
+
+	return lhs;
+}
+std::shared_ptr<ASTNode> Parser::parseBitAndExpr()
+{
+	std::shared_ptr<ASTNode> lhs = parseCompareExpr();
+
+	while (m_tokenStream->type == TokenType::BitAnd)
+	{
+		TokenType op = m_tokenStream->type;
+		eat(op);
 
 		std::shared_ptr<ASTNode> rhs = parseCompareExpr();
 		lhs = std::make_shared<BinaryExprAST>(op, lhs, rhs);
@@ -139,7 +169,7 @@ std::shared_ptr<ASTNode> Parser::parseCompareExpr()
 	while (m_tokenStream->type == TokenType::Less || m_tokenStream->type == TokenType::Greater || m_tokenStream->type == TokenType::Equal)
 	{
 		TokenType op = m_tokenStream->type;
-		m_tokenStream++;
+		eat(op);
 		std::shared_ptr<ASTNode> rhs = parsePlusMinus();
 		lhs = std::make_shared<BinaryExprAST>(op, lhs, rhs);
 		return lhs;
@@ -153,7 +183,7 @@ std::shared_ptr<ASTNode> Parser::parsePlusMinus()
 	while (m_tokenStream->type == TokenType::Plus || m_tokenStream->type == TokenType::Minus)
 	{
 		TokenType op = m_tokenStream->type;
-		m_tokenStream++;
+		eat(op);
 
 		std::shared_ptr<ASTNode> rhs = parseMulDiv();
 
@@ -169,7 +199,7 @@ std::shared_ptr<ASTNode> Parser::parseMulDiv()
 	while (m_tokenStream->type == TokenType::Mul || m_tokenStream->type == TokenType::Div)
 	{
 		TokenType op = m_tokenStream->type;
-		m_tokenStream++;
+		eat(op);
 
 		std::shared_ptr<ASTNode> rhs = parseExponentiation();
 
@@ -185,7 +215,7 @@ std::shared_ptr<ASTNode> Parser::parseExponentiation()
 	while (m_tokenStream->type == TokenType::Exponentiation)
 	{
 		TokenType op = m_tokenStream->type;
-		m_tokenStream++;
+		eat(op);
 
 		std::shared_ptr<ASTNode> rhs = parseFactor();
 
@@ -235,10 +265,9 @@ std::shared_ptr<ASTNode> Parser::parseFactor()
 
 std::shared_ptr<AssignExprAST> Parser::parseAssign()
 {
-	std::string varName = check({ TokenType::Identifier }).value;
-	m_tokenStream++;
-	check({ TokenType::Assign });
-	m_tokenStream++;
+	std::string varName = m_tokenStream->value;
+	eat(TokenType::Identifier);
+	eat(TokenType::Assign);
 	return std::make_shared<AssignExprAST>(varName, parseExpression());
 }
 
@@ -247,7 +276,6 @@ std::vector<std::shared_ptr<ASTNode>> Parser::parseStatement()
 	switch (m_tokenStream->type)
 	{
 	case TokenType::Def:
-		m_tokenStream++;
 		parseFunction();
 		break;
 	case TokenType::Int:
@@ -283,13 +311,11 @@ std::vector<std::shared_ptr<ASTNode>> Parser::parseStatement()
 
 std::shared_ptr<ASTNode> Parser::parsePrint()
 {
-	m_tokenStream++;
+	eat(TokenType::Print);
 
-	check({ TokenType::OpenParen });
-	m_tokenStream++;
+	eat(TokenType::OpenParen);
 	std::shared_ptr<ConsoleOutputExprAST> outAST = std::make_shared<ConsoleOutputExprAST>(parseExpression());
-	check({ TokenType::CloseParen });
-	m_tokenStream++;
+	eat(TokenType::CloseParen);
 
 	return outAST;
 }
@@ -299,26 +325,28 @@ std::vector<std::shared_ptr<ASTNode>> Parser::parseVarDecl()
 	std::vector<std::shared_ptr<ASTNode>> vars;
 	std::vector<std::pair<std::string, std::shared_ptr<ASTNode>>> varsAssign;
 	TokenType varType = checkType().type;
-	m_tokenStream++;
+	eat(varType);
 	while (m_tokenStream->type != TokenType::Semicolon)
 	{
 		if (m_tokenStream->type == TokenType::Comma)
 		{
-			m_tokenStream++;
+			eat(TokenType::Comma);
 			continue;
 		}
 		else if (m_tokenStream->type == TokenType::Identifier && m_tokenStream.next().type == TokenType::Assign)
 		{
 			std::string varName = m_tokenStream->value;
-			m_tokenStream++;
-			m_tokenStream++;
+			eat(TokenType::Identifier);
+
+			eat(TokenType::Assign);
+
 			std::shared_ptr<ASTNode> value = parseExpression();
 			varsAssign.push_back({ varName, value });
 		}
 		else if(m_tokenStream->type == TokenType::Identifier && m_tokenStream.next().type != TokenType::Assign)
 		{
 			std::string varName = m_tokenStream->value;
-			m_tokenStream++;
+			eat(TokenType::Identifier);
 			varsAssign.push_back({ varName, nullptr });
 		}
 	}
@@ -336,8 +364,8 @@ std::shared_ptr<BlockAST> Parser::parseBlock()
 	symbolTableBlock->extend(prevSymbolTable.get());
 	SymbolTableManager::getInstance().setSymbolTable(symbolTableBlock);
 
-	check({ TokenType::BlockStart });
-	m_tokenStream++;
+	eat(TokenType::BlockStart);
+
 	auto block = std::make_unique<BlockAST>(m_globalSymbolTable);
 	while(m_tokenStream->type != TokenType::BlockStop)
 	{
@@ -354,12 +382,10 @@ std::shared_ptr<BlockAST> Parser::parseBlock()
 				continue;
 			}
 		}
-		check({ TokenType::Semicolon });
-		m_tokenStream++;
+		eat(TokenType::Semicolon);
 	}
 	
-	check({ TokenType::BlockStop });
-	m_tokenStream++;
+	eat(TokenType::BlockStop);
 
 	SymbolTableManager::getInstance().setSymbolTable(prevSymbolTable);
 
@@ -370,47 +396,42 @@ std::vector<std::pair<TokenType, std::string>> Parser::parseArgs()
 {
 	auto symbolTableFunc = SymbolTableManager::getInstance().getSymbolTable();
 	std::vector<std::pair<TokenType, std::string>> args;
-	check({ TokenType::OpenParen });
-	m_tokenStream++;
+	eat(TokenType::OpenParen);
 	while(m_tokenStream->type != TokenType::CloseParen)
 	{
 		TokenType type = checkType().type;
-		m_tokenStream++;
-		std::string name = check({TokenType::Identifier}).value;
-		m_tokenStream++;
+		eat(type);
+		std::string name = m_tokenStream->value;
+		eat(TokenType::Identifier);
 		args.push_back({ type, name });
 		symbolTableFunc->addVarType(name, getType(type));
 		if (m_tokenStream->type != TokenType::CloseParen)
 		{
-			check({ TokenType::Comma });
-			m_tokenStream++;
+			eat(TokenType::Comma);
 		}
 	}
-	check({ TokenType::CloseParen });
-	m_tokenStream++;
+	eat(TokenType::CloseParen);
 	return args;
 	
 }
 
 std::shared_ptr<CallExprAST> Parser::parseCallFunc()
 {
-	std::string nameFuncCall = check({TokenType::Identifier}).value;
-	m_tokenStream++;
+	std::string nameFuncCall = m_tokenStream->value;
+	eat(TokenType::Identifier);
 	std::vector<std::shared_ptr<ASTNode>> callArgs;
-	check({ TokenType::OpenParen });
-	m_tokenStream++;
+	eat(TokenType::OpenParen);
 	while(m_tokenStream->type != TokenType::CloseParen)
 	{
 		if (m_tokenStream->type == TokenType::Comma)
 		{
-			m_tokenStream++;
+			eat(TokenType::Comma);
 			continue;
 		}
 		std::shared_ptr<ASTNode> arg = parseExpression();
 		callArgs.push_back(std::move(arg));
 	}
-	check({ TokenType::CloseParen });
-	m_tokenStream++;
+	eat(TokenType::CloseParen);
 	return std::make_shared<CallExprAST>(nameFuncCall, std::move(callArgs));
 }
 
@@ -422,20 +443,19 @@ std::shared_ptr<ASTNode> Parser::parseFunction()
 	symbolTableFunc->extend(prevSymbolTable.get());
 	SymbolTableManager::getInstance().setSymbolTable(symbolTableFunc);
 
-	check({ TokenType::Def });
-	m_tokenStream++;
+	eat(TokenType::Def);
 	TokenType retType = TokenType::NonType;
 	if (checkType().type != TokenType::Invalid)
 	{
 		retType = checkType().type;
-		m_tokenStream++;
+		eat(retType);
 	}
-	std::string funcName = check({ TokenType::Identifier }).value;
-	m_tokenStream++;
+	std::string funcName = m_tokenStream->value;
+	eat(TokenType::Identifier);
 	std::vector<std::pair<TokenType, std::string>> args = std::move(parseArgs());
 	if (m_tokenStream->type == TokenType::Semicolon)
 	{
-		m_tokenStream++;
+		eat(TokenType::Semicolon);
 		auto proto = std::make_shared<ProtFunctionAST>(funcName, getType(retType), args);
 		proto->codegen();
 		SymbolTableManager::getInstance().setSymbolTable(prevSymbolTable);
@@ -454,7 +474,7 @@ std::shared_ptr<ASTNode> Parser::parseFunction()
 
 std::shared_ptr<ReturnAST> Parser::parseReturn()
 {
-	m_tokenStream++;
+	eat(TokenType::Return);
 	if (m_tokenStream->type == TokenType::Semicolon)
 	{
 		return std::make_shared<ReturnAST>(nullptr);

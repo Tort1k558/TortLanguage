@@ -140,6 +140,13 @@ TOKEN: [5] Type: IntLiteral
 TOKEN: [)] Type: CloseParen
 TOKEN: [)] Type: CloseParen
 TOKEN: [;] Type: Semicolon
+TOKEN: [print] Type: Print
+TOKEN: [(] Type: OpenParen
+TOKEN: [2] Type: IntLiteral
+TOKEN: [|] Type: BitOr
+TOKEN: [1] Type: IntLiteral
+TOKEN: [)] Type: CloseParen
+TOKEN: [;] Type: Semicolon
 TOKEN: [return] Type: Return
 TOKEN: [c] Type: Identifier
 TOKEN: [;] Type: Semicolon

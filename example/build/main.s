@@ -129,6 +129,9 @@ main:
 	leaq	.L__unnamed_4(%rip), %rcx
 	movl	%eax, %edx
 	callq	printf
+	leaq	.L__unnamed_5(%rip), %rcx
+	movl	$3, %edx
+	callq	printf
 	movl	52(%rsp), %eax
 	addq	$56, %rsp
 	retq
@@ -145,6 +148,9 @@ main:
 	.asciz	"%d\n"
 
 .L__unnamed_4:
+	.asciz	"%d\n"
+
+.L__unnamed_5:
 	.asciz	"%d\n"
 
 	.globl	_fltused

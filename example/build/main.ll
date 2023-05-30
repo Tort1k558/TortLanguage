@@ -5,6 +5,7 @@ source_filename = "main"
 @1 = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
 @2 = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
 @3 = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
+@4 = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
 
 define i32 @sum(i32 %arg0, i32 %arg1) {
 entry:
@@ -129,8 +130,9 @@ elseblock:                                        ; preds = %mergeblock7
 mergeblock9:                                      ; preds = %elseblock, %elseifblock3, %elseifblock, %ifblock
   %calltmp = call i32 @fact(i32 5)
   %10 = call i32 (ptr, ...) @printf(ptr @3, i32 %calltmp)
-  %11 = load i32, ptr %c, align 4
-  ret i32 %11
+  %11 = call i32 (ptr, ...) @printf(ptr @4, i32 3)
+  %12 = load i32, ptr %c, align 4
+  ret i32 %12
 }
 
 declare i32 @printf(ptr, ...)
