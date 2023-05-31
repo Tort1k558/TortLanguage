@@ -72,7 +72,7 @@ entry:
   %a = alloca i32, align 4
   store i32 2, ptr %a, align 4
   %b = alloca i32, align 4
-  store i32 1, ptr %b, align 4
+  store i32 -1, ptr %b, align 4
   %c = alloca i32, align 4
   %0 = load i32, ptr %a, align 4
   %i32toi1tmp = icmp ne i32 %0, 0
@@ -91,48 +91,46 @@ mergeblock:                                       ; preds = %rhsblock, %entry
   %2 = load i32, ptr %c, align 4
   %3 = call i32 (ptr, ...) @printf(ptr @0, i32 %2)
   %4 = load i32, ptr %a, align 4
-  %greatertmp = icmp sgt i32 %4, 0
-  br i1 %greatertmp, label %ifblock, label %elseifblockhelp
+  %lesstmp = icmp slt i32 %4, 0
+  br i1 %lesstmp, label %ifblock, label %elseifblockhelp
 
 ifblock:                                          ; preds = %mergeblock
-  br label %mergeblock9
+  br label %mergeblock5
 
 elseifblockhelp:                                  ; preds = %mergeblock
   %5 = load i32, ptr %b, align 4
-  %lesstmp = icmp slt i32 %5, 99
-  br i1 %lesstmp, label %elseifblock, label %elseifblockhelp2
+  %lesstmp2 = icmp slt i32 %5, 99
+  br i1 %lesstmp2, label %elseifblock, label %elseblock
 
 elseifblock:                                      ; preds = %elseifblockhelp
-  br label %mergeblock9
+  br label %whileexprblock
 
-elseifblockhelp2:                                 ; preds = %elseifblockhelp
-  %6 = load i32, ptr %a, align 4
-  %i32toi1tmp4 = icmp ne i32 %6, 0
-  br i1 %i32toi1tmp4, label %mergeblock7, label %rhsblock5
+whileexprblock:                                   ; preds = %whileblock, %elseifblock
+  %6 = load i32, ptr %b, align 4
+  %lesstmp3 = icmp slt i32 %6, 5
+  br i1 %lesstmp3, label %whileblock, label %mergeblock4
 
-elseifblock3:                                     ; preds = %mergeblock7
-  %7 = call i32 (ptr, ...) @printf(ptr @1, i32 9)
-  br label %mergeblock9
+whileblock:                                       ; preds = %whileexprblock
+  %7 = load i32, ptr %b, align 4
+  %8 = call i32 (ptr, ...) @printf(ptr @1, i32 %7)
+  %9 = load i32, ptr %b, align 4
+  %incrementtmp = add i32 %9, 1
+  store i32 %incrementtmp, ptr %b, align 4
+  br label %whileexprblock
 
-rhsblock5:                                        ; preds = %elseifblockhelp2
-  %8 = load i32, ptr %b, align 4
-  %i32toi1tmp6 = icmp ne i32 %8, 0
-  br label %mergeblock7
+mergeblock4:                                      ; preds = %whileexprblock
+  br label %mergeblock5
 
-mergeblock7:                                      ; preds = %rhsblock5, %elseifblockhelp2
-  %orresult8 = phi i1 [ %i32toi1tmp4, %elseifblockhelp2 ], [ %i32toi1tmp6, %rhsblock5 ]
-  br i1 %orresult8, label %elseifblock3, label %elseblock
+elseblock:                                        ; preds = %elseifblockhelp
+  %10 = call i32 (ptr, ...) @printf(ptr @2, i32 0)
+  br label %mergeblock5
 
-elseblock:                                        ; preds = %mergeblock7
-  %9 = call i32 (ptr, ...) @printf(ptr @2, i32 99999)
-  br label %mergeblock9
-
-mergeblock9:                                      ; preds = %elseblock, %elseifblock3, %elseifblock, %ifblock
+mergeblock5:                                      ; preds = %elseblock, %mergeblock4, %ifblock
   %calltmp = call i32 @fact(i32 5)
-  %10 = call i32 (ptr, ...) @printf(ptr @3, i32 %calltmp)
-  %11 = call i32 (ptr, ...) @printf(ptr @4, i32 3)
-  %12 = load i32, ptr %c, align 4
-  ret i32 %12
+  %11 = call i32 (ptr, ...) @printf(ptr @3, i32 %calltmp)
+  %12 = call i32 (ptr, ...) @printf(ptr @4, i32 3)
+  %13 = load i32, ptr %c, align 4
+  ret i32 %13
 }
 
 declare i32 @printf(ptr, ...)

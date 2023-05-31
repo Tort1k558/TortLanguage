@@ -48,6 +48,7 @@ private:
 	std::shared_ptr<ASTNode> parsePrint();
 	std::vector<std::pair<TokenType, std::string>> parseArgs();
 	std::shared_ptr<IfAST> parseIf();
+	std::shared_ptr<WhileAST> parseWhile();
 
 };
 

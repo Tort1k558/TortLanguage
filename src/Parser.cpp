@@ -29,19 +29,25 @@ void Parser::parse()
 
 std::shared_ptr<ASTNode> Parser::parseLiteral()
 {
+	std::string minus = "";
+	if (m_tokenStream->type == TokenType::Minus)
+	{
+		minus = "-";
+		eat(TokenType::Minus);
+	}
 	switch (m_tokenStream->type)
 	{
 	case TokenType::IntLiteral:
 	{
 		std::string value = m_tokenStream->value;
 		eat(TokenType::IntLiteral);
-		return std::make_shared<LiteralExprAST<int>>(std::stoi(value));
+		return std::make_shared<LiteralExprAST<int>>(std::stoi(minus+value));
 	}
 	case TokenType::DoubleLiteral:
 	{
 		std::string value = m_tokenStream->value;
 		eat(TokenType::DoubleLiteral);
-		return std::make_shared<LiteralExprAST<double>>(std::stod(value));
+		return std::make_shared<LiteralExprAST<double>>(std::stod(minus+value));
 	}
 	case TokenType::TrueLiteral:
 	{
@@ -245,11 +251,11 @@ std::shared_ptr<ASTNode> Parser::parseFactor()
 		}
 		return parseVariable();
 	}
-	else if (m_tokenStream->type == TokenType::Increment || m_tokenStream->type == TokenType::Decrement)
+	else if (check({TokenType::Decrement,TokenType::Increment}).type != TokenType::Invalid)
 	{
 		return parseUnary(true);
 	}
-	else if (checkLiteral().type != TokenType::Invalid)
+	else if (checkLiteral().type != TokenType::Invalid || m_tokenStream->type == TokenType::Minus)
 	{
 		return parseLiteral();
 	}
@@ -302,9 +308,10 @@ std::vector<std::shared_ptr<ASTNode>> Parser::parseStatement()
 		return { parsePrint() };
 	case TokenType::If:
 		return { parseIf() };
+	case TokenType::While:
+		return { parseWhile() };
 	default:
 		return { parseExpression() };
-		break;
 	}
 	return {};
 }
@@ -378,6 +385,11 @@ std::shared_ptr<BlockAST> Parser::parseBlock()
 		{
 			std::shared_ptr<IfAST> ifAST = std::dynamic_pointer_cast<IfAST>(statements[0]);
 			if (ifAST)
+			{
+				continue;
+			}
+			std::shared_ptr<WhileAST> whileAST = std::dynamic_pointer_cast<WhileAST>(statements[0]);
+			if (whileAST)
 			{
 				continue;
 			}
@@ -510,6 +522,14 @@ std::shared_ptr<IfAST> Parser::parseIf()
 		elseBlock = parseBlock();
 	}
 	return std::make_shared<IfAST>(ifExpr, ifBlock, elseBlock, std::move(elseIfs));
+}
+std::shared_ptr<WhileAST> Parser::parseWhile()
+{
+	eat(TokenType::While);
+	std::shared_ptr<ASTNode> whileExpr = parseExpression();
+	eat(TokenType::Colon);
+	std::shared_ptr<BlockAST> whileBlock = parseBlock();
+	return std::make_shared<WhileAST>(whileExpr, whileBlock);
 }
 
 Token Parser::check(std::vector<TokenType> types)

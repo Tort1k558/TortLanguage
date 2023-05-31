@@ -75,3 +75,18 @@ TEST(TestCompile, Function)
 		FAIL() << e.what();
 	}
 }
+
+TEST(TestCompile, While)
+{
+	Compiler compiler;
+	compiler.setInputFile("tests/WhileTest/while.tt");
+	try
+	{
+		compiler.compile();
+		ASSERT_TRUE(true);
+	}
+	catch (const std::exception& e)
+	{
+		FAIL() << e.what();
+	}
+}

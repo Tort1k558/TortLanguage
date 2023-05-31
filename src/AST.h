@@ -420,3 +420,23 @@ private:
     llvm::BasicBlock* m_gotoelseBB;
     llvm::Value* m_value;
 };
+
+class WhileAST : public ASTNode
+{
+public:
+    WhileAST() = delete;
+    WhileAST(std::shared_ptr<ASTNode> whileExpr, std::shared_ptr<BlockAST> whileBlock)
+        : m_whileExpr(whileExpr), m_whileBlock(whileBlock) {}
+    virtual void doSemantic()
+    {
+
+    }
+    std::shared_ptr<BlockAST> getWhileBlock()
+    {
+        return m_whileBlock;
+    }
+    llvm::Value* codegen() override;
+private:
+    std::shared_ptr<ASTNode> m_whileExpr;
+    std::shared_ptr<BlockAST> m_whileBlock;
+};

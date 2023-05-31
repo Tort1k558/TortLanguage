@@ -393,7 +393,6 @@ llvm::Value* UnaryExprAST::codegen()
         }
         break;
     }
-
     }
     return nullptr;
 }
@@ -502,6 +501,7 @@ std::vector<std::shared_ptr<ReturnAST>> BlockAST::getReturns()
                 returns.push_back(ret);
             }
         }
+
         std::shared_ptr<IfAST> ifAST= std::dynamic_pointer_cast<IfAST>(stmt);
         if (ifAST != nullptr)
         {
@@ -528,6 +528,15 @@ std::vector<std::shared_ptr<ReturnAST>> BlockAST::getReturns()
                 {
                     returns.push_back(ret);
                 }
+            }
+        }
+
+        std::shared_ptr<WhileAST> whileAST = std::dynamic_pointer_cast<WhileAST>(stmt);
+        if (whileAST)
+        {
+            for (const auto& ret : whileAST->getWhileBlock()->getReturns())
+            {
+                returns.push_back(ret);
             }
         }
     }
@@ -797,6 +806,7 @@ llvm::Value* IfAST::codegen()
     builder->SetInsertPoint(mergeBB);
     return ifValue;
 }
+
 llvm::Value* CastAST::codegen()
 {
     LLVMManager& manager = LLVMManager::getInstance();
@@ -844,4 +854,36 @@ llvm::Value* GotoAST::codegen()
         builder->CreateBr(m_gotoBB);
     }
     return m_value;
+}
+
+llvm::Value* WhileAST::codegen()
+{
+    LLVMManager& manager = LLVMManager::getInstance();
+    auto builder = manager.getBuilder();
+    auto context = manager.getContext();
+
+    llvm::Function* function = builder->GetInsertBlock()->getParent();
+
+    llvm::BasicBlock* exprBB = llvm::BasicBlock::Create(*context, "whileexprblock");
+    llvm::BasicBlock* whileBB = llvm::BasicBlock::Create(*context, "whileblock");
+    llvm::BasicBlock* mergeBB = llvm::BasicBlock::Create(*context, "mergeblock");
+    
+    //generate exprblock
+    function->insert(function->end(), exprBB);
+    builder->CreateBr(exprBB);
+    builder->SetInsertPoint(exprBB);
+    llvm::Value* value = m_whileExpr->codegen();
+    builder->CreateCondBr(value, whileBB, mergeBB);
+
+    //generate whileblock
+    function->insert(function->end(), whileBB);
+    builder->SetInsertPoint(whileBB);
+    m_whileBlock->codegen();
+    builder->CreateBr(exprBB);
+
+    //continue block
+    function->insert(function->end(), mergeBB);
+    builder->SetInsertPoint(mergeBB);
+
+    return nullptr;
 }

@@ -19,25 +19,25 @@ def double div(double a,double b);
 
 def main()
 {
-    int a = 2,b = 1;
+    int a = 2,b = -1;
     int c = cast<int>(a or b)+4;
 	print(c);
-    if a > 0:
+    if a < 0:
     {
     	
     }
     else if b < 99:
     {
-    	
-    }
-    else if a or b:
-    {
-    	print(9);
+    	while b < 5:
+		{
+			print(b);
+			b++;
+		}
     }
     else:
-    {
-    	print(99999);
-    }
+	{
+		print(000000);
+	}
     print(fact(5));
 	print(2|1);
     return c;
