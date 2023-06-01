@@ -64,7 +64,7 @@ def div(double a,double b)
 	return a / b;
 }
 ```
-[Generates this llvm IR code without optimization]((example/build/main.ll))
+[Generates this llvm IR code without optimization](example/build/main.ll)
 
 ## Support
 - Windows
