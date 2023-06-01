@@ -90,33 +90,39 @@ private:
     std::shared_ptr<ASTNode> m_val;
 };
 
-template<typename T>
+
 class LiteralExprAST : public ASTNode {
 public:
     LiteralExprAST() = delete;
-    LiteralExprAST(T value) : m_value(value) {}
+    LiteralExprAST(const std::string& value, TokenType type) : m_value(value), m_type(type){}
 
     void doSemantic() override
     {
         LLVMManager& manager = LLVMManager::getInstance();
-        std::shared_ptr<llvm::LLVMContext> context = manager.getContext();
+        auto context = manager.getContext();
+        auto builder = manager.getBuilder();
 
-        if (std::is_same<T, double>::value)
+        if (m_type == TokenType::DoubleLiteral)
         {
-            llvmType = llvm::Type::getDoubleTy(*context);
+            llvmType = builder->getDoubleTy();
         }
-        else if (std::is_same<T, int>::value)
+        else if (m_type == TokenType::IntLiteral)
         {
-            llvmType = llvm::Type::getInt32Ty(*context);
+            llvmType = builder->getInt32Ty();
         }
-        else if (std::is_same<T, bool>::value)
+        else if (m_type == TokenType::TrueLiteral || m_type == TokenType::FalseLiteral)
         {
-            llvmType = llvm::Type::getInt1Ty(*context);
+            llvmType = builder->getInt1Ty();
+        }
+        else if (m_type == TokenType::StringLiteral)
+        {
+            llvmType = builder->getInt8PtrTy();
         }
     }
     llvm::Value* codegen() override;
 private:
-    T m_value;
+    std::string m_value;
+    TokenType m_type;
 };
 
 class BinaryExprAST : public ASTNode {

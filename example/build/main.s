@@ -149,6 +149,9 @@ main:
 	leaq	.L__unnamed_6(%rip), %rcx
 	vmovdqa	%xmm0, %xmm1
 	callq	printf
+	leaq	.L__unnamed_7(%rip), %rcx
+	leaq	.L.str(%rip), %rdx
+	callq	printf
 	movl	40(%rsp), %eax
 	addq	$48, %rsp
 	popq	%rsi
@@ -173,5 +176,11 @@ main:
 
 .L__unnamed_6:
 	.asciz	"%f\n"
+
+.L.str:
+	.asciz	"Hello World!"
+
+.L__unnamed_7:
+	.asciz	"%s"
 
 	.globl	_fltused

@@ -12,7 +12,9 @@ Upon completion of this work, the compiler generates files such as:
 - Executable file
 
 ## Example
+
 ```
+
 def sum(int a,int b)
 {
 	return a+b;
@@ -53,8 +55,10 @@ def main()
 	{
 		print(000000);
 	}
-    print(fact(5));
+    print(fact(6));
 	print(2|1);
+	print(10.0 ** 5.0);
+	print("Hello World!");
     return c;
 }
 
@@ -63,6 +67,7 @@ def div(double a,double b)
 {
 	return a / b;
 }
+
 ```
 [Generates this llvm IR code without optimization](example/build/main.ll)
 

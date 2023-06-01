@@ -157,6 +157,11 @@ TOKEN: [**] Type: Exponentiation
 TOKEN: [5.0] Type: DoubleLiteral
 TOKEN: [)] Type: CloseParen
 TOKEN: [;] Type: Semicolon
+TOKEN: [print] Type: Print
+TOKEN: [(] Type: OpenParen
+TOKEN: ["Hello World!"] Type: StringLiteral
+TOKEN: [)] Type: CloseParen
+TOKEN: [;] Type: Semicolon
 TOKEN: [return] Type: Return
 TOKEN: [c] Type: Identifier
 TOKEN: [;] Type: Semicolon

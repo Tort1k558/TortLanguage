@@ -63,6 +63,10 @@ Token Lexer::getIdentifier() {
     {
         return Token{ TokenType::Bool, identifier };
     }
+    else if (identifier == "string")
+    {
+        return Token{ TokenType::String, identifier };
+    }
     else if (identifier == "true")
     {
         return Token{ TokenType::TrueLiteral, identifier };

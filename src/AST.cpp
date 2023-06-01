@@ -16,6 +16,8 @@ llvm::Type* getType(TokenType type)
         return llvm::Type::getDoubleTy(*context);
     case TokenType::Void:
         return llvm::Type::getVoidTy(*context);
+    case TokenType::String:
+        return llvm::Type::getInt8PtrTy(*context);
     case TokenType::NonType:
         return nullptr;
     default:
@@ -63,7 +65,7 @@ llvm::Value* VarDeclAST::codegen()
 
     llvm::Type* type = getType(m_type);
     llvm::AllocaInst* alloca = builder->CreateAlloca(type, nullptr, m_name.c_str());
-    llvm::Value* value;
+    llvm::Value* value = nullptr;
     if (!m_value)
     {
         if (type->isDoubleTy())
@@ -78,15 +80,16 @@ llvm::Value* VarDeclAST::codegen()
         {
             value = llvm::ConstantInt::get(llvm::Type::getInt32Ty(*context), 0);
         }
-        else
+        else if (type->isPointerTy())
         {
-            throw std::runtime_error("ERROR::AST::This type is not supported yet");
+            value = llvm::Constant::getNullValue(type);;
         }
     }
     else
     {
         value = m_value->codegen();
     }
+
     builder->CreateStore(value, alloca);
 
     symbolTable->addVar(m_name, alloca);
@@ -119,26 +122,33 @@ llvm::Value* AssignExprAST::codegen()
     return value;
 }
 
-template class LiteralExprAST<int>;
-template class LiteralExprAST<double>;
-template class LiteralExprAST<bool>;
-template<typename T>
-llvm::Value* LiteralExprAST<T>::codegen()
+llvm::Value* LiteralExprAST::codegen()
 {
     LLVMManager& manager = LLVMManager::getInstance();
     auto context = manager.getContext();
+    auto builder = manager.getBuilder();
 
-    if (std::is_same<T, double>::value)
+    if (m_type == TokenType::DoubleLiteral)
     {
-        return llvm::ConstantFP::get(*context, llvm::APFloat(static_cast<double>(m_value)));
+        return llvm::ConstantFP::get(*context, llvm::APFloat(std::stod(m_value)));
     }
-    else if (std::is_same<T, int>::value)
+    else if (m_type == TokenType::IntLiteral)
     {
-        return llvm::ConstantInt::get(llvm::Type::getInt32Ty(*context), m_value);
+        return llvm::ConstantInt::get(llvm::Type::getInt32Ty(*context), std::stoi(m_value));
     }
-    else if (std::is_same<T, bool>::value)
+    else if (m_type == TokenType::TrueLiteral)
     {
-        return llvm::ConstantInt::get(llvm::Type::getInt1Ty(*context), m_value);
+        return llvm::ConstantInt::get(llvm::Type::getInt1Ty(*context), true);
+    }
+    else if (m_type == TokenType::FalseLiteral)
+    {
+        return llvm::ConstantInt::get(llvm::Type::getInt1Ty(*context), false);
+    }
+    else if (m_type == TokenType::StringLiteral)
+    {
+        llvm::Constant* globalString = builder->CreateGlobalStringPtr(m_value, ".str");
+        llvm::Value* zero = llvm::ConstantInt::get(llvm::Type::getInt32Ty(*context), 0);
+        return builder->CreateConstInBoundsGEP1_32(globalString->getType(), globalString, 0, "strptr");
     }
 }
 
@@ -442,13 +452,17 @@ llvm::Value* ConsoleOutputExprAST::codegen()
         value = m_expr->codegen();
     }
 
-    std::string formatStr;
+    std::string formatStr = "%s";
     std::vector<llvm::Value*> printfArgs;
     if (value)
     {
         llvm::Type* i = value->getType();
         if (i->isFloatTy() || i->isDoubleTy()) {
             formatStr = "%f\n";
+        }
+        else if (i->isIntegerTy(32))
+        {
+            formatStr = "%d\n";
         }
         else if (i->isIntegerTy(1))
         {
@@ -460,10 +474,6 @@ llvm::Value* ConsoleOutputExprAST::codegen()
             printfArgs.push_back(bool_str);
             printfArgs.push_back(result);
             return builder->CreateCall(printFunc, printfArgs);
-        }
-        else if (i->isIntegerTy(32))
-        {
-            formatStr = "%d\n";
         }
     }
     else

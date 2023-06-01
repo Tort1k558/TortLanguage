@@ -41,23 +41,35 @@ std::shared_ptr<ASTNode> Parser::parseLiteral()
 	{
 		std::string value = m_tokenStream->value;
 		eat(TokenType::IntLiteral);
-		return std::make_shared<LiteralExprAST<int>>(std::stoi(minus+value));
+		return std::make_shared<LiteralExprAST>(minus+value, TokenType::IntLiteral);
 	}
 	case TokenType::DoubleLiteral:
 	{
 		std::string value = m_tokenStream->value;
 		eat(TokenType::DoubleLiteral);
-		return std::make_shared<LiteralExprAST<double>>(std::stod(minus+value));
+		return std::make_shared<LiteralExprAST>(minus+value, TokenType::DoubleLiteral);
 	}
 	case TokenType::TrueLiteral:
 	{
+		std::string value = m_tokenStream->value;
 		eat(TokenType::TrueLiteral);
-		return std::make_shared<LiteralExprAST<bool>>(true);
+		return std::make_shared<LiteralExprAST>(value, TokenType::TrueLiteral);
 	}
 	case TokenType::FalseLiteral:
 	{
+		std::string value = m_tokenStream->value;
 		eat(TokenType::FalseLiteral);
-		return std::make_shared<LiteralExprAST<bool>>(false);
+		return std::make_shared<LiteralExprAST>(value, TokenType::FalseLiteral);
+	}
+	case TokenType::StringLiteral:
+	{
+		std::string value = m_tokenStream->value;
+
+		//Remove quotes
+		value = value.substr(1, value.size() - 2);
+		eat(TokenType::StringLiteral);
+
+		return std::make_shared<LiteralExprAST>(value, TokenType::StringLiteral);
 	}
 	}
 	return nullptr;
@@ -287,11 +299,12 @@ std::vector<std::shared_ptr<ASTNode>> Parser::parseStatement()
 	case TokenType::Int:
 	case TokenType::Double:
 	case TokenType::Bool:
+	case TokenType::String:
 		if (m_tokenStream.next().type == TokenType::Identifier)
 		{
 			return parseVarDecl();
 		}
-		break;
+		throw std::runtime_error("ERROR::PARSER::Variable name not specified");
 	case TokenType::Identifier:
 		if (m_tokenStream.next().type == TokenType::Assign)
 		{
@@ -494,7 +507,6 @@ std::shared_ptr<ReturnAST> Parser::parseReturn()
 	return std::make_shared<ReturnAST>(parseExpression());
 }
 
-
 std::shared_ptr<IfAST> Parser::parseIf()
 {
 	eat(TokenType::If);
@@ -523,6 +535,7 @@ std::shared_ptr<IfAST> Parser::parseIf()
 	}
 	return std::make_shared<IfAST>(ifExpr, ifBlock, elseBlock, std::move(elseIfs));
 }
+
 std::shared_ptr<WhileAST> Parser::parseWhile()
 {
 	eat(TokenType::While);
@@ -547,12 +560,12 @@ Token Parser::check(std::vector<TokenType> types)
 
 Token Parser::checkType()
 {
-	return check({ TokenType::Int,TokenType::Double,TokenType::Bool });
+	return check({ TokenType::Int,TokenType::Double,TokenType::Bool,TokenType::String});
 }
 
 Token Parser::checkLiteral()
 {
-	return check({ TokenType::IntLiteral,TokenType::DoubleLiteral,TokenType::TrueLiteral,TokenType::FalseLiteral });
+	return check({ TokenType::IntLiteral,TokenType::DoubleLiteral,TokenType::TrueLiteral,TokenType::FalseLiteral, TokenType::StringLiteral});
 }
 void Parser::eat(TokenType type)
 {

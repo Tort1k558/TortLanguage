@@ -2,6 +2,7 @@ def main()
 {
 	int a,b,c;
 	double d = 10.0,e,f;
-	bool g = true,h,i =false;
+	bool g = true,h,i = false;
+	string str = "Hello World!";
 	return 0;
 }
