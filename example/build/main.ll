@@ -6,6 +6,7 @@ source_filename = "main"
 @2 = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
 @3 = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
 @4 = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
+@5 = private unnamed_addr constant [4 x i8] c"%f\0A\00", align 1
 
 define i32 @sum(i32 %arg0, i32 %arg1) {
 entry:
@@ -126,11 +127,18 @@ elseblock:                                        ; preds = %elseifblockhelp
   br label %mergeblock5
 
 mergeblock5:                                      ; preds = %elseblock, %mergeblock4, %ifblock
-  %calltmp = call i32 @fact(i32 5)
+  %calltmp = call i32 @fact(i32 6)
   %11 = call i32 (ptr, ...) @printf(ptr @3, i32 %calltmp)
   %12 = call i32 (ptr, ...) @printf(ptr @4, i32 3)
-  %13 = load i32, ptr %c, align 4
-  ret i32 %13
+  %powtmp = call double @llvm.pow.f64(double 1.000000e+01, double 5.000000e+00)
+  %13 = call i32 (ptr, ...) @printf(ptr @5, double %powtmp)
+  %14 = load i32, ptr %c, align 4
+  ret i32 %14
 }
 
 declare i32 @printf(ptr, ...)
+
+; Function Attrs: nocallback nofree nosync nounwind speculatable willreturn memory(none)
+declare double @llvm.pow.f64(double, double) #0
+
+attributes #0 = { nocallback nofree nosync nounwind speculatable willreturn memory(none) }

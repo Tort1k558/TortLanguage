@@ -80,6 +80,17 @@ div:
 	.scl	2;
 	.type	32;
 	.endef
+	.globl	__real@4024000000000000
+	.section	.rdata,"dr",discard,__real@4024000000000000
+	.p2align	3, 0x0
+__real@4024000000000000:
+	.quad	0x4024000000000000
+	.globl	__real@4014000000000000
+	.section	.rdata,"dr",discard,__real@4014000000000000
+	.p2align	3, 0x0
+__real@4014000000000000:
+	.quad	0x4014000000000000
+	.text
 	.globl	main
 	.p2align	4, 0x90
 main:
@@ -123,13 +134,20 @@ main:
 	xorl	%edx, %edx
 	callq	printf
 .LBB3_8:
-	movl	$5, %ecx
+	movl	$6, %ecx
 	callq	fact
 	leaq	.L__unnamed_4(%rip), %rcx
 	movl	%eax, %edx
 	callq	printf
 	leaq	.L__unnamed_5(%rip), %rcx
 	movl	$3, %edx
+	callq	printf
+	vmovq	__real@4024000000000000(%rip), %xmm0
+	vmovsd	__real@4014000000000000(%rip), %xmm1
+	callq	pow
+	vmovq	%xmm0, %rdx
+	leaq	.L__unnamed_6(%rip), %rcx
+	vmovdqa	%xmm0, %xmm1
 	callq	printf
 	movl	40(%rsp), %eax
 	addq	$48, %rsp
@@ -152,5 +170,8 @@ main:
 
 .L__unnamed_5:
 	.asciz	"%d\n"
+
+.L__unnamed_6:
+	.asciz	"%f\n"
 
 	.globl	_fltused

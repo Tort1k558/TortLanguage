@@ -146,6 +146,7 @@ llvm::Value* BinaryExprAST::codegen()
 {
     LLVMManager& manager = LLVMManager::getInstance();
     auto builder = manager.getBuilder();
+    auto module = manager.getModule();
     auto context = manager.getContext();
     
     //for these operators, the code must be generated differently
@@ -225,6 +226,7 @@ llvm::Value* BinaryExprAST::codegen()
     if (lhsType != rhsType)
     {
         rhsValue = castType(rhsValue,lhsType);
+        rhsType = lhsType;
     }
     switch (m_op) {
     case TokenType::Plus:
@@ -323,8 +325,26 @@ llvm::Value* BinaryExprAST::codegen()
     case TokenType::BitOr:
         return builder->CreateOr(lhsValue, rhsValue, "bitortmp");
     case TokenType::Exponentiation:
-        //TODO
-        break;
+    {
+        if (lhsType->isIntegerTy())
+        {
+            lhsValue = castType(lhsValue, builder->getDoubleTy());
+        }
+        if (rhsType->isIntegerTy())
+        {
+            rhsValue = castType(rhsValue, builder->getDoubleTy());
+        }
+
+        llvm::Function* powFunction = llvm::Intrinsic::getDeclaration(module.get(), llvm::Intrinsic::pow, {lhsValue->getType()});
+        llvm::Value* result = builder->CreateCall(powFunction, { lhsValue,rhsValue }, "powtmp");
+
+        if (lhsType->isIntegerTy())
+        {
+            return castType(result, lhsType);
+        }
+
+        return result;
+    }
     default:
         throw std::runtime_error("ERROR::AST::Invalid binary operator: " + g_nameTypes[static_cast<int>(m_op)]);
     }
@@ -735,13 +755,13 @@ llvm::Value* IfAST::codegen()
         builder->CreateCondBr(condValue, ifBB, mergeBB);
     }
     
-
+    //generate ifBlock
     builder->SetInsertPoint(ifBB);
     m_ifBlock->addStatement(std::make_shared<GotoAST>(mergeBB));
     llvm::Value* ifValue = m_ifBlock->codegen();
     ifBB = builder->GetInsertBlock();
-    
 
+    //generate elseIfBlocks
     if (!m_elseIfs.empty())
     {
         llvm::BasicBlock* nextElseifBBHelp = nullptr;
@@ -784,12 +804,13 @@ llvm::Value* IfAST::codegen()
             m_elseIfs[i].second->addStatement(std::make_shared<GotoAST>(mergeBB));
             llvm::Value* elseifValue = m_elseIfs[i].second->codegen();
             elseifBB = builder->GetInsertBlock();
-            
+
             elseifBBHelp = nextElseifBBHelp;
         }
     }
     
 
+    //generate elseBlock
     llvm::Value* elseValue = nullptr;
     if (m_elseBlock)
     {
@@ -798,9 +819,6 @@ llvm::Value* IfAST::codegen()
 
         m_elseBlock->addStatement(std::make_shared<GotoAST>(mergeBB));
         elseValue = m_elseBlock->codegen();
-
-        elseBB = builder->GetInsertBlock();
-
     }
     function->insert(function->end(), mergeBB);
     builder->SetInsertPoint(mergeBB);

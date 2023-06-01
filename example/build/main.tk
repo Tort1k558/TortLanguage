@@ -139,7 +139,7 @@ TOKEN: [print] Type: Print
 TOKEN: [(] Type: OpenParen
 TOKEN: [fact] Type: Identifier
 TOKEN: [(] Type: OpenParen
-TOKEN: [5] Type: IntLiteral
+TOKEN: [6] Type: IntLiteral
 TOKEN: [)] Type: CloseParen
 TOKEN: [)] Type: CloseParen
 TOKEN: [;] Type: Semicolon
@@ -148,6 +148,13 @@ TOKEN: [(] Type: OpenParen
 TOKEN: [2] Type: IntLiteral
 TOKEN: [|] Type: BitOr
 TOKEN: [1] Type: IntLiteral
+TOKEN: [)] Type: CloseParen
+TOKEN: [;] Type: Semicolon
+TOKEN: [print] Type: Print
+TOKEN: [(] Type: OpenParen
+TOKEN: [10.0] Type: DoubleLiteral
+TOKEN: [**] Type: Exponentiation
+TOKEN: [5.0] Type: DoubleLiteral
 TOKEN: [)] Type: CloseParen
 TOKEN: [;] Type: Semicolon
 TOKEN: [return] Type: Return
