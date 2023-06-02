@@ -300,6 +300,7 @@ std::vector<std::shared_ptr<ASTNode>> Parser::parseStatement()
 	case TokenType::Double:
 	case TokenType::Bool:
 	case TokenType::String:
+	case TokenType::Var:
 		if (m_tokenStream.next().type == TokenType::Identifier)
 		{
 			return parseVarDecl();
@@ -469,28 +470,36 @@ std::shared_ptr<ASTNode> Parser::parseFunction()
 	SymbolTableManager::getInstance().setSymbolTable(symbolTableFunc);
 
 	eat(TokenType::Def);
+
 	TokenType retType = TokenType::NonType;
 	if (checkType().type != TokenType::Invalid)
 	{
 		retType = checkType().type;
 		eat(retType);
 	}
+
 	std::string funcName = m_tokenStream->value;
 	eat(TokenType::Identifier);
+	
 	std::vector<std::pair<TokenType, std::string>> args = std::move(parseArgs());
+
+	//Parse the prototype if there is no block
 	if (m_tokenStream->type == TokenType::Semicolon)
 	{
 		eat(TokenType::Semicolon);
-		auto proto = std::make_shared<ProtFunctionAST>(funcName, getType(retType), args);
+		auto proto = std::make_shared<ProtFunctionAST>(funcName, retType, args);
 		proto->codegen();
 		SymbolTableManager::getInstance().setSymbolTable(prevSymbolTable);
 		prevSymbolTable->addFunctionReturnType(funcName, proto->llvmType);
 		return proto;
 	}
+
 	std::shared_ptr<BlockAST> body = parseBlock();
-	auto func = std::make_shared<FunctionAST>(funcName, getType(retType), args, std::move(body));
+	auto func = std::make_shared<FunctionAST>(funcName, retType, args, std::move(body));
+
 	func->doSemantic();
 	func->codegen();
+
 	SymbolTableManager::getInstance().setSymbolTable(prevSymbolTable);
 	prevSymbolTable->addFunctionReturnType(funcName, func->llvmType);
 	return func;
@@ -560,12 +569,12 @@ Token Parser::check(std::vector<TokenType> types)
 
 Token Parser::checkType()
 {
-	return check({ TokenType::Int,TokenType::Double,TokenType::Bool,TokenType::String});
+	return check({ TokenType::Int, TokenType::Double, TokenType::Bool, TokenType::String, TokenType::Var});
 }
 
 Token Parser::checkLiteral()
 {
-	return check({ TokenType::IntLiteral,TokenType::DoubleLiteral,TokenType::TrueLiteral,TokenType::FalseLiteral, TokenType::StringLiteral});
+	return check({ TokenType::IntLiteral, TokenType::DoubleLiteral, TokenType::TrueLiteral, TokenType::FalseLiteral, TokenType::StringLiteral});
 }
 void Parser::eat(TokenType type)
 {

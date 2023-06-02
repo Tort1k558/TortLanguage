@@ -162,6 +162,11 @@ TOKEN: [(] Type: OpenParen
 TOKEN: ["Hello World!"] Type: StringLiteral
 TOKEN: [)] Type: CloseParen
 TOKEN: [;] Type: Semicolon
+TOKEN: [var] Type: Var
+TOKEN: [variable] Type: Identifier
+TOKEN: [=] Type: Assign
+TOKEN: [1.0] Type: DoubleLiteral
+TOKEN: [;] Type: Semicolon
 TOKEN: [return] Type: Return
 TOKEN: [c] Type: Identifier
 TOKEN: [;] Type: Semicolon

@@ -135,6 +135,8 @@ mergeblock5:                                      ; preds = %elseblock, %mergebl
   %powtmp = call double @llvm.pow.f64(double 1.000000e+01, double 5.000000e+00)
   %13 = call i32 (ptr, ...) @printf(ptr @5, double %powtmp)
   %14 = call i32 (ptr, ...) @printf(ptr @6, ptr @.str)
+  %variable = alloca double, align 8
+  store double 1.000000e+00, ptr %variable, align 8
   %15 = load i32, ptr %c, align 4
   ret i32 %15
 }

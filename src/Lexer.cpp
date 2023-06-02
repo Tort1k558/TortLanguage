@@ -41,15 +41,15 @@ Token Lexer::getIdentifier() {
     std::string identifier = m_input.substr(startPos, m_currentPos - startPos);
     if (identifier == "if")
     {
-        return Token{ TokenType::If,identifier };
+        return Token{ TokenType::If, identifier };
     }
     else if (identifier == "else")
     {
-        return Token{ TokenType::Else,identifier };
+        return Token{ TokenType::Else, identifier };
     }
     else if (identifier == "while")
     {
-        return Token{ TokenType::While,identifier };
+        return Token{ TokenType::While, identifier };
     }
     else if (identifier == "int")
     {
@@ -66,6 +66,10 @@ Token Lexer::getIdentifier() {
     else if (identifier == "string")
     {
         return Token{ TokenType::String, identifier };
+    }
+    else if (identifier == "var")
+    {
+        return Token{ TokenType::Var, identifier };
     }
     else if (identifier == "true")
     {

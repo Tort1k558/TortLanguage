@@ -44,12 +44,23 @@ private:
 class VarDeclAST : public ASTNode {
 public:
     VarDeclAST() = delete;
-    VarDeclAST(const std::string& name, std::shared_ptr<ASTNode> value,TokenType type)
-        : m_name(name), m_value(std::move(value)),m_type(type) {}
+    VarDeclAST(const std::string& name, std::shared_ptr<ASTNode> value, TokenType type)
+        : m_name(name), m_value(value), m_type(type) {}
     void doSemantic() override
     {
         auto symbolTable = SymbolTableManager::getInstance().getSymbolTable();
-        symbolTable->addVarType(m_name, getType(m_type));
+        llvmType = getType(m_type);
+        if (m_type == TokenType::Var)
+        {
+            if (!m_value)
+            {
+                throw std::runtime_error("ERROR::AST::The variable of type var must be initialized immediately");
+            }
+            m_value->doSemantic();
+            llvmType = m_value->llvmType;
+        }
+
+        symbolTable->addVarType(m_name, llvmType);
     }
     llvm::Value* codegen() override;
 private:
@@ -271,10 +282,10 @@ private:
 class FunctionAST : public ASTNode {
 public:
     FunctionAST() = delete;
-    FunctionAST(const std::string& name, llvm::Type* retType,
+    FunctionAST(const std::string& name, TokenType retType,
         std::vector<std::pair<TokenType, std::string>> args,
         std::shared_ptr<BlockAST> body)
-        : m_name(name), m_returnType(retType), m_args(args), m_body(std::move(body))
+        : m_name(name), m_returnType(getType(retType)), m_args(args), m_body(std::move(body))
     {}
     void doSemantic() override
     {
@@ -346,9 +357,9 @@ private:
 class ProtFunctionAST : public ASTNode {
 public:
     ProtFunctionAST() = delete;
-    ProtFunctionAST(const std::string& name, llvm::Type* retType,
+    ProtFunctionAST(const std::string& name, TokenType retType,
         std::vector<std::pair<TokenType, std::string>> args)
-        : m_name(name), m_returnType(retType), m_args(args) {}
+        : m_name(name), m_returnType(getType(retType)), m_args(args) {}
     void doSemantic() override
     {
         llvmType = m_returnType;

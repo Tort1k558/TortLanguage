@@ -4,5 +4,10 @@ def main()
 	double d = 10.0,e,f;
 	bool g = true,h,i = false;
 	string str = "Hello World!";
+	var j = "Hi";
+	var k = 10;
+	var l = 1.0;
+	var m = true;
+	var n = false;
 	return 0;
 }

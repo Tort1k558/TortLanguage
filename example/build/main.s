@@ -95,45 +95,56 @@ __real@4014000000000000:
 	.p2align	4, 0x90
 main:
 .seh_proc main
+	pushq	%rbp
+	.seh_pushreg %rbp
 	pushq	%rsi
 	.seh_pushreg %rsi
-	subq	$48, %rsp
+	subq	$24, %rsp
+	leaq	16(%rsp), %rbp
 	movb	$1, %al
-	.seh_stackalloc 48
+	.seh_stackalloc 24
+	.seh_setframe %rbp, 16
 	.seh_endprologue
-	movl	$2, 44(%rsp)
-	movl	$-1, 36(%rsp)
+	movl	$2, -4(%rbp)
+	movl	$-1, 4(%rbp)
 	testb	%al, %al
 	jne	.LBB3_2
-	cmpl	$0, 36(%rsp)
+	cmpl	$0, 4(%rbp)
 	setne	%al
 .LBB3_2:
 	movzbl	%al, %edx
-	leaq	.L__unnamed_1(%rip), %rcx
 	orl	$4, %edx
-	movl	%edx, 40(%rsp)
+	movl	%edx, (%rbp)
+	subq	$32, %rsp
+	leaq	.L__unnamed_1(%rip), %rcx
 	callq	printf
-	cmpl	$0, 44(%rsp)
+	addq	$32, %rsp
+	cmpl	$0, -4(%rbp)
 	js	.LBB3_8
-	cmpl	$98, 36(%rsp)
+	cmpl	$98, 4(%rbp)
 	jg	.LBB3_7
 	leaq	.L__unnamed_2(%rip), %rsi
-	cmpl	$4, 36(%rsp)
+	cmpl	$4, 4(%rbp)
 	jg	.LBB3_8
 	.p2align	4, 0x90
 .LBB3_6:
-	movl	36(%rsp), %edx
+	movl	4(%rbp), %edx
+	subq	$32, %rsp
 	movq	%rsi, %rcx
 	callq	printf
-	incl	36(%rsp)
-	cmpl	$4, 36(%rsp)
+	addq	$32, %rsp
+	incl	4(%rbp)
+	cmpl	$4, 4(%rbp)
 	jle	.LBB3_6
 	jmp	.LBB3_8
 .LBB3_7:
+	subq	$32, %rsp
 	leaq	.L__unnamed_3(%rip), %rcx
 	xorl	%edx, %edx
 	callq	printf
+	addq	$32, %rsp
 .LBB3_8:
+	subq	$32, %rsp
 	movl	$6, %ecx
 	callq	fact
 	leaq	.L__unnamed_4(%rip), %rcx
@@ -152,9 +163,17 @@ main:
 	leaq	.L__unnamed_7(%rip), %rcx
 	leaq	.L.str(%rip), %rdx
 	callq	printf
-	movl	40(%rsp), %eax
-	addq	$48, %rsp
+	addq	$32, %rsp
+	movl	$16, %eax
+	callq	__chkstk
+	subq	%rax, %rsp
+	movq	%rsp, %rax
+	movabsq	$4607182418800017408, %rcx
+	movq	%rcx, (%rax)
+	movl	(%rbp), %eax
+	leaq	8(%rbp), %rsp
 	popq	%rsi
+	popq	%rbp
 	retq
 	.seh_endproc
 

@@ -15,6 +15,7 @@
 
 int main(int argc, char* argv[]) {
     Compiler compiler;
+
 	if (argc < 2)
 	{
 		std::cerr << "You must specify the parameters!" << std::endl;
@@ -60,6 +61,7 @@ int main(int argc, char* argv[]) {
 			return 0;
 		}
 	}
+
 	try
 	{
 		compiler.compile();

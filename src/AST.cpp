@@ -18,6 +18,7 @@ llvm::Type* getType(TokenType type)
         return llvm::Type::getVoidTy(*context);
     case TokenType::String:
         return llvm::Type::getInt8PtrTy(*context);
+    case TokenType::Var:
     case TokenType::NonType:
         return nullptr;
     default:
@@ -63,26 +64,26 @@ llvm::Value* VarDeclAST::codegen()
     auto builder = manager.getBuilder();
     auto symbolTable  = SymbolTableManager::getInstance().getSymbolTable();
 
-    llvm::Type* type = getType(m_type);
-    llvm::AllocaInst* alloca = builder->CreateAlloca(type, nullptr, m_name.c_str());
+
+    llvm::AllocaInst* alloca = builder->CreateAlloca(llvmType, nullptr, m_name.c_str());
     llvm::Value* value = nullptr;
     if (!m_value)
     {
-        if (type->isDoubleTy())
+        if (llvmType->isDoubleTy())
         {
             value = llvm::ConstantFP::get(*context, llvm::APFloat(0.0));
         }
-        else if (type->isIntegerTy(1))
+        else if (llvmType->isIntegerTy(1))
         {
             value = llvm::ConstantInt::get(llvm::Type::getInt1Ty(*context), false);
         }
-        else if (type->isIntegerTy())
+        else if (llvmType->isIntegerTy())
         {
             value = llvm::ConstantInt::get(llvm::Type::getInt32Ty(*context), 0);
         }
-        else if (type->isPointerTy())
+        else if (llvmType->isPointerTy())
         {
-            value = llvm::Constant::getNullValue(type);;
+            value = llvm::Constant::getNullValue(llvmType);;
         }
     }
     else
@@ -150,6 +151,7 @@ llvm::Value* LiteralExprAST::codegen()
         llvm::Value* zero = llvm::ConstantInt::get(llvm::Type::getInt32Ty(*context), 0);
         return builder->CreateConstInBoundsGEP1_32(globalString->getType(), globalString, 0, "strptr");
     }
+    return nullptr;
 }
 
 llvm::Value* BinaryExprAST::codegen()
@@ -640,6 +642,7 @@ llvm::Value* FunctionAST::codegen()
     {
         arg.setName("arg"+std::to_string(i));
         std::shared_ptr<VarDeclAST> var = std::make_shared<VarDeclAST>(m_args[i].second, std::make_shared<LLVMValueAST>(&arg), m_args[i].first);
+        var->doSemantic();
         var->codegen();
         ++i;
     }
