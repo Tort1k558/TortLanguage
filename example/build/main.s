@@ -120,12 +120,12 @@ main:
 	callq	printf
 	addq	$32, %rsp
 	cmpl	$0, -4(%rbp)
-	js	.LBB3_8
+	js	.LBB3_9
 	cmpl	$98, 4(%rbp)
-	jg	.LBB3_7
+	jg	.LBB3_8
 	leaq	.L__unnamed_2(%rip), %rsi
 	cmpl	$4, 4(%rbp)
-	jg	.LBB3_8
+	jg	.LBB3_9
 	.p2align	4, 0x90
 .LBB3_6:
 	movl	4(%rbp), %edx
@@ -133,17 +133,19 @@ main:
 	movq	%rsi, %rcx
 	callq	printf
 	addq	$32, %rsp
+	cmpl	$4, 4(%rbp)
+	jg	.LBB3_9
 	incl	4(%rbp)
 	cmpl	$4, 4(%rbp)
 	jle	.LBB3_6
-	jmp	.LBB3_8
-.LBB3_7:
+	jmp	.LBB3_9
+.LBB3_8:
 	subq	$32, %rsp
 	leaq	.L__unnamed_3(%rip), %rcx
 	xorl	%edx, %edx
 	callq	printf
 	addq	$32, %rsp
-.LBB3_8:
+.LBB3_9:
 	subq	$32, %rsp
 	movl	$6, %ecx
 	callq	fact
@@ -163,6 +165,9 @@ main:
 	leaq	.L__unnamed_7(%rip), %rcx
 	leaq	.L.str(%rip), %rdx
 	callq	printf
+	leaq	.L__unnamed_8(%rip), %rcx
+	xorl	%edx, %edx
+	callq	printf
 	addq	$32, %rsp
 	movl	$16, %eax
 	callq	__chkstk
@@ -170,6 +175,11 @@ main:
 	movq	%rsp, %rax
 	movabsq	$4607182418800017408, %rcx
 	movq	%rcx, (%rax)
+	subq	$32, %rsp
+	leaq	.L__unnamed_9(%rip), %rcx
+	movl	$1, %edx
+	callq	printf
+	addq	$32, %rsp
 	movl	(%rbp), %eax
 	leaq	8(%rbp), %rsp
 	popq	%rsi
@@ -201,5 +211,11 @@ main:
 
 .L__unnamed_7:
 	.asciz	"%s"
+
+.L__unnamed_8:
+	.asciz	"%d\n"
+
+.L__unnamed_9:
+	.asciz	"%d\n"
 
 	.globl	_fltused

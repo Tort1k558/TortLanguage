@@ -324,6 +324,12 @@ std::vector<std::shared_ptr<ASTNode>> Parser::parseStatement()
 		return { parseIf() };
 	case TokenType::While:
 		return { parseWhile() };
+	case TokenType::Break:
+		return { parseBreak() };
+	case TokenType::Continue:
+		return { parseContinue() };
+	case TokenType::BlockStart:
+		return { parseBlock() };
 	default:
 		return { parseExpression() };
 	}
@@ -345,8 +351,10 @@ std::vector<std::shared_ptr<ASTNode>> Parser::parseVarDecl()
 {
 	std::vector<std::shared_ptr<ASTNode>> vars;
 	std::vector<std::pair<std::string, std::shared_ptr<ASTNode>>> varsAssign;
+
 	TokenType varType = checkType().type;
 	eat(varType);
+
 	while (m_tokenStream->type != TokenType::Semicolon)
 	{
 		if (m_tokenStream->type == TokenType::Comma)
@@ -358,9 +366,7 @@ std::vector<std::shared_ptr<ASTNode>> Parser::parseVarDecl()
 		{
 			std::string varName = m_tokenStream->value;
 			eat(TokenType::Identifier);
-
 			eat(TokenType::Assign);
-
 			std::shared_ptr<ASTNode> value = parseExpression();
 			varsAssign.push_back({ varName, value });
 		}
@@ -397,6 +403,7 @@ std::shared_ptr<BlockAST> Parser::parseBlock()
 		}
 		if (!statements.empty())
 		{
+			// There should be no semicolon after these statements
 			std::shared_ptr<IfAST> ifAST = std::dynamic_pointer_cast<IfAST>(statements[0]);
 			if (ifAST)
 			{
@@ -404,6 +411,11 @@ std::shared_ptr<BlockAST> Parser::parseBlock()
 			}
 			std::shared_ptr<WhileAST> whileAST = std::dynamic_pointer_cast<WhileAST>(statements[0]);
 			if (whileAST)
+			{
+				continue;
+			}
+			std::shared_ptr<BlockAST> blockAST = std::dynamic_pointer_cast<BlockAST>(statements[0]);
+			if (blockAST)
 			{
 				continue;
 			}
@@ -552,6 +564,18 @@ std::shared_ptr<WhileAST> Parser::parseWhile()
 	eat(TokenType::Colon);
 	std::shared_ptr<BlockAST> whileBlock = parseBlock();
 	return std::make_shared<WhileAST>(whileExpr, whileBlock);
+}
+
+std::shared_ptr<BreakAST> Parser::parseBreak()
+{
+	eat(TokenType::Break);
+	return std::make_shared<BreakAST>();
+}
+
+std::shared_ptr<ContinueAST> Parser::parseContinue()
+{
+	eat(TokenType::Continue);
+	return std::make_shared<ContinueAST>();
 }
 
 Token Parser::check(std::vector<TokenType> types)

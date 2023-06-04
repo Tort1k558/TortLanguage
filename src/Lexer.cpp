@@ -51,6 +51,14 @@ Token Lexer::getIdentifier() {
     {
         return Token{ TokenType::While, identifier };
     }
+    else if (identifier == "break")
+    {
+        return Token{ TokenType::Break, identifier };
+    }
+    else if (identifier == "continue")
+    {
+        return Token{ TokenType::Continue, identifier };
+    }
     else if (identifier == "int")
     {
         return Token{ TokenType::Int, identifier };
@@ -105,6 +113,7 @@ Token Lexer::getIdentifier() {
     }
     return Token{ TokenType::Identifier, identifier };
 }
+
 Token Lexer::getNumber() {
     size_t startPos = m_currentPos;
     bool isFloat = false;
@@ -121,6 +130,7 @@ Token Lexer::getNumber() {
     }
     return Token{ TokenType::IntLiteral, m_input.substr(startPos, m_currentPos - startPos) };
 }
+
 Token Lexer::getOperator() {
     size_t startPos = m_currentPos;
 
@@ -182,6 +192,7 @@ Token Lexer::getOperator() {
     }
     return Token{ TokenType::Invalid, op };
 }
+
 Token Lexer::getPunctuation() {
     size_t startPos = m_currentPos;
     m_currentPos++;

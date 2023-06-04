@@ -31,6 +31,10 @@ def main()
     	while b < 5:
 		{
 			print(b);
+			if b > 4:
+			{
+				break;
+			}
 			b++;
 		}
     }
@@ -42,7 +46,11 @@ def main()
 	print(2|1);
 	print(10.0 ** 5.0);
 	print("Hello World!");
+	print(-10+10);
 	var autoTypeVar = 1.0;
+	{
+		print(1);
+	}
     return c;
 }
 

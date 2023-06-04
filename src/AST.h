@@ -223,6 +223,42 @@ private:
     llvm::AllocaInst* m_returnVar;
 };
 
+class BreakAST : public ASTNode
+{
+public:
+    BreakAST():
+    m_nextBlock(nullptr) {}
+    virtual void doSemantic()
+    {
+
+    }
+    void setNextBlock(llvm::BasicBlock* block)
+    {
+        m_nextBlock = block;
+    }
+    llvm::Value* codegen() override;
+private:
+    llvm::BasicBlock* m_nextBlock;
+};
+
+class ContinueAST : public ASTNode
+{
+public:
+    ContinueAST() :
+        m_nextBlock(nullptr) {}
+    virtual void doSemantic()
+    {
+
+    }
+    void setNextBlock(llvm::BasicBlock* block)
+    {
+        m_nextBlock = block;
+    }
+    llvm::Value* codegen() override;
+private:
+    llvm::BasicBlock* m_nextBlock;
+};
+
 class BlockAST : public ASTNode {
 public:
     BlockAST(std::shared_ptr<SymbolTable> symbolTable)
@@ -240,6 +276,7 @@ public:
     }
 
     std::vector<std::shared_ptr<ReturnAST>> getReturns();
+    std::vector<std::shared_ptr<BreakAST>> getBreaks();
     void doSemantic() override
     {
         for (const auto& stmt : m_stmts)

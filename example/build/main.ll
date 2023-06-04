@@ -9,6 +9,8 @@ source_filename = "main"
 @5 = private unnamed_addr constant [4 x i8] c"%f\0A\00", align 1
 @.str = private unnamed_addr constant [13 x i8] c"Hello World!\00", align 1
 @6 = private unnamed_addr constant [3 x i8] c"%s\00", align 1
+@7 = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
+@8 = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
 
 define i32 @sum(i32 %arg0, i32 %arg1) {
 entry:
@@ -98,7 +100,7 @@ mergeblock:                                       ; preds = %rhsblock, %entry
   br i1 %lesstmp, label %ifblock, label %elseifblockhelp
 
 ifblock:                                          ; preds = %mergeblock
-  br label %mergeblock5
+  br label %mergeblock7
 
 elseifblockhelp:                                  ; preds = %mergeblock
   %5 = load i32, ptr %b, align 4
@@ -108,37 +110,47 @@ elseifblockhelp:                                  ; preds = %mergeblock
 elseifblock:                                      ; preds = %elseifblockhelp
   br label %whileexprblock
 
-whileexprblock:                                   ; preds = %whileblock, %elseifblock
+whileexprblock:                                   ; preds = %mergeblock5, %elseifblock
   %6 = load i32, ptr %b, align 4
   %lesstmp3 = icmp slt i32 %6, 5
-  br i1 %lesstmp3, label %whileblock, label %mergeblock4
+  br i1 %lesstmp3, label %whileblock, label %mergeblock6
 
 whileblock:                                       ; preds = %whileexprblock
   %7 = load i32, ptr %b, align 4
   %8 = call i32 (ptr, ...) @printf(ptr @1, i32 %7)
   %9 = load i32, ptr %b, align 4
-  %incrementtmp = add i32 %9, 1
+  %greatertmp = icmp sgt i32 %9, 4
+  br i1 %greatertmp, label %ifblock4, label %mergeblock5
+
+ifblock4:                                         ; preds = %whileblock
+  br label %mergeblock6
+
+mergeblock5:                                      ; preds = %whileblock
+  %10 = load i32, ptr %b, align 4
+  %incrementtmp = add i32 %10, 1
   store i32 %incrementtmp, ptr %b, align 4
   br label %whileexprblock
 
-mergeblock4:                                      ; preds = %whileexprblock
-  br label %mergeblock5
+mergeblock6:                                      ; preds = %ifblock4, %whileexprblock
+  br label %mergeblock7
 
 elseblock:                                        ; preds = %elseifblockhelp
-  %10 = call i32 (ptr, ...) @printf(ptr @2, i32 0)
-  br label %mergeblock5
+  %11 = call i32 (ptr, ...) @printf(ptr @2, i32 0)
+  br label %mergeblock7
 
-mergeblock5:                                      ; preds = %elseblock, %mergeblock4, %ifblock
+mergeblock7:                                      ; preds = %elseblock, %mergeblock6, %ifblock
   %calltmp = call i32 @fact(i32 6)
-  %11 = call i32 (ptr, ...) @printf(ptr @3, i32 %calltmp)
-  %12 = call i32 (ptr, ...) @printf(ptr @4, i32 3)
+  %12 = call i32 (ptr, ...) @printf(ptr @3, i32 %calltmp)
+  %13 = call i32 (ptr, ...) @printf(ptr @4, i32 3)
   %powtmp = call double @llvm.pow.f64(double 1.000000e+01, double 5.000000e+00)
-  %13 = call i32 (ptr, ...) @printf(ptr @5, double %powtmp)
-  %14 = call i32 (ptr, ...) @printf(ptr @6, ptr @.str)
-  %variable = alloca double, align 8
-  store double 1.000000e+00, ptr %variable, align 8
-  %15 = load i32, ptr %c, align 4
-  ret i32 %15
+  %14 = call i32 (ptr, ...) @printf(ptr @5, double %powtmp)
+  %15 = call i32 (ptr, ...) @printf(ptr @6, ptr @.str)
+  %16 = call i32 (ptr, ...) @printf(ptr @7, i32 0)
+  %autoTypeVar = alloca double, align 8
+  store double 1.000000e+00, ptr %autoTypeVar, align 8
+  %17 = call i32 (ptr, ...) @printf(ptr @8, i32 1)
+  %18 = load i32, ptr %c, align 4
+  ret i32 %18
 }
 
 declare i32 @printf(ptr, ...)

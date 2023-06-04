@@ -501,7 +501,17 @@ llvm::Value* BlockAST::codegen()
     llvm::Value* lastVal = nullptr;
     for (const auto& stmt : m_stmts) {
         lastVal = stmt->codegen();
+
+        //No need to generate code after return,break,continue
         if (std::dynamic_pointer_cast<ReturnAST>(stmt))
+        {
+            break;
+        }
+        if (std::dynamic_pointer_cast<BreakAST>(stmt))
+        {
+            break;
+        }
+        if (std::dynamic_pointer_cast<ContinueAST>(stmt))
         {
             break;
         }
@@ -514,19 +524,18 @@ llvm::Value* BlockAST::codegen()
 
     return lastVal;
 }
-
 std::vector<std::shared_ptr<ReturnAST>> BlockAST::getReturns()
 {
     std::vector<std::shared_ptr<ReturnAST>> returns;
     for (const auto& stmt : m_stmts)
     {
         std::shared_ptr<ReturnAST> returnAST = std::dynamic_pointer_cast<ReturnAST>(stmt);
-        if (returnAST != nullptr)
+        if (returnAST)
         {
             returns.push_back(returnAST);
         }
         std::shared_ptr<BlockAST> blockAST = std::dynamic_pointer_cast<BlockAST>(stmt);
-        if (blockAST != nullptr)
+        if (blockAST)
         {
             for (const auto& ret : blockAST->getReturns())
             {
@@ -535,7 +544,7 @@ std::vector<std::shared_ptr<ReturnAST>> BlockAST::getReturns()
         }
 
         std::shared_ptr<IfAST> ifAST= std::dynamic_pointer_cast<IfAST>(stmt);
-        if (ifAST != nullptr)
+        if (ifAST)
         {
             auto ifBlockAST = ifAST->getIfBlock();
             auto elseIfsBlockAST = ifAST->getElseIfs();
@@ -574,7 +583,56 @@ std::vector<std::shared_ptr<ReturnAST>> BlockAST::getReturns()
     }
     return returns;
 }
+std::vector<std::shared_ptr<BreakAST>> BlockAST::getBreaks()
+{
+    std::vector<std::shared_ptr<BreakAST>> breaks;
+    for (const auto& stmt : m_stmts)
+    {
+        std::shared_ptr<BreakAST> breakAST = std::dynamic_pointer_cast<BreakAST>(stmt);
+        if (breakAST)
+        {
+            breaks.push_back(breakAST);
+        }
+        std::shared_ptr<BlockAST> blockAST = std::dynamic_pointer_cast<BlockAST>(stmt);
+        if (blockAST)
+        {
+            for (const auto& brk : blockAST->getBreaks())
+            {
+                breaks.push_back(brk);
+            }
+        }
 
+        std::shared_ptr<IfAST> ifAST = std::dynamic_pointer_cast<IfAST>(stmt);
+        if (ifAST)
+        {
+            auto ifBlockAST = ifAST->getIfBlock();
+            auto elseIfsBlockAST = ifAST->getElseIfs();
+            auto elseBlockAST = ifAST->getElseBlock();
+            for (const auto& ret : ifBlockAST->getBreaks())
+            {
+                breaks.push_back(ret);
+            }
+            if (!elseIfsBlockAST.empty())
+            {
+                for (size_t i = 0; i < elseIfsBlockAST.size(); i++)
+                {
+                    for (const auto& ret : elseIfsBlockAST[i].second->getBreaks())
+                    {
+                        breaks.push_back(ret);
+                    }
+                }
+            }
+            if (elseBlockAST)
+            {
+                for (const auto& brk : elseBlockAST->getBreaks())
+                {
+                    breaks.push_back(brk);
+                }
+            }
+        }
+    }
+    return breaks;
+}
 llvm::Value* ProtFunctionAST::codegen() 
 {
     LLVMManager& manager = LLVMManager::getInstance();
@@ -909,6 +967,11 @@ llvm::Value* WhileAST::codegen()
     //generate whileblock
     function->insert(function->end(), whileBB);
     builder->SetInsertPoint(whileBB);
+    std::vector<std::shared_ptr<BreakAST>> breaks = m_whileBlock->getBreaks();
+    for (const auto& brk : breaks)
+    {
+        brk->setNextBlock(mergeBB);
+    }
     m_whileBlock->codegen();
     builder->CreateBr(exprBB);
 
@@ -916,5 +979,20 @@ llvm::Value* WhileAST::codegen()
     function->insert(function->end(), mergeBB);
     builder->SetInsertPoint(mergeBB);
 
+    return nullptr;
+}
+
+llvm::Value* BreakAST::codegen()
+{
+    LLVMManager& manager = LLVMManager::getInstance();
+    auto builder = manager.getBuilder();
+    builder->CreateBr(m_nextBlock);
+    return nullptr;
+}
+llvm::Value* ContinueAST::codegen()
+{
+    LLVMManager& manager = LLVMManager::getInstance();
+    auto builder = manager.getBuilder();
+    builder->CreateBr(m_nextBlock);
     return nullptr;
 }

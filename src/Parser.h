@@ -49,6 +49,8 @@ private:
 	std::vector<std::pair<TokenType, std::string>> parseArgs();
 	std::shared_ptr<IfAST> parseIf();
 	std::shared_ptr<WhileAST> parseWhile();
+	std::shared_ptr<BreakAST> parseBreak();
+	std::shared_ptr<ContinueAST> parseContinue();
 
 };
 
