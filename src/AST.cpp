@@ -608,17 +608,17 @@ std::vector<std::shared_ptr<BreakAST>> BlockAST::getBreaks()
             auto ifBlockAST = ifAST->getIfBlock();
             auto elseIfsBlockAST = ifAST->getElseIfs();
             auto elseBlockAST = ifAST->getElseBlock();
-            for (const auto& ret : ifBlockAST->getBreaks())
+            for (const auto& brk : ifBlockAST->getBreaks())
             {
-                breaks.push_back(ret);
+                breaks.push_back(brk);
             }
             if (!elseIfsBlockAST.empty())
             {
                 for (size_t i = 0; i < elseIfsBlockAST.size(); i++)
                 {
-                    for (const auto& ret : elseIfsBlockAST[i].second->getBreaks())
+                    for (const auto& brk : elseIfsBlockAST[i].second->getBreaks())
                     {
-                        breaks.push_back(ret);
+                        breaks.push_back(brk);
                     }
                 }
             }
@@ -632,6 +632,56 @@ std::vector<std::shared_ptr<BreakAST>> BlockAST::getBreaks()
         }
     }
     return breaks;
+}
+std::vector<std::shared_ptr<ContinueAST>> BlockAST::getContinuations()
+{
+    std::vector<std::shared_ptr<ContinueAST>> continuations;
+    for (const auto& stmt : m_stmts)
+    {
+        std::shared_ptr<ContinueAST> continueAST = std::dynamic_pointer_cast<ContinueAST>(stmt);
+        if (continueAST)
+        {
+            continuations.push_back(continueAST);
+        }
+        std::shared_ptr<BlockAST> blockAST = std::dynamic_pointer_cast<BlockAST>(stmt);
+        if (blockAST)
+        {
+            for (const auto& cont : blockAST->getContinuations())
+            {
+                continuations.push_back(cont);
+            }
+        }
+
+        std::shared_ptr<IfAST> ifAST = std::dynamic_pointer_cast<IfAST>(stmt);
+        if (ifAST)
+        {
+            auto ifBlockAST = ifAST->getIfBlock();
+            auto elseIfsBlockAST = ifAST->getElseIfs();
+            auto elseBlockAST = ifAST->getElseBlock();
+            for (const auto& cont : ifBlockAST->getContinuations())
+            {
+                continuations.push_back(cont);
+            }
+            if (!elseIfsBlockAST.empty())
+            {
+                for (size_t i = 0; i < elseIfsBlockAST.size(); i++)
+                {
+                    for (const auto& cont : elseIfsBlockAST[i].second->getContinuations())
+                    {
+                        continuations.push_back(cont);
+                    }
+                }
+            }
+            if (elseBlockAST)
+            {
+                for (const auto& cont : elseBlockAST->getContinuations())
+                {
+                    continuations.push_back(cont);
+                }
+            }
+        }
+    }
+    return continuations;
 }
 llvm::Value* ProtFunctionAST::codegen() 
 {
@@ -967,10 +1017,13 @@ llvm::Value* WhileAST::codegen()
     //generate whileblock
     function->insert(function->end(), whileBB);
     builder->SetInsertPoint(whileBB);
-    std::vector<std::shared_ptr<BreakAST>> breaks = m_whileBlock->getBreaks();
-    for (const auto& brk : breaks)
+    for (const auto& brk : m_whileBlock->getBreaks())
     {
         brk->setNextBlock(mergeBB);
+    }
+    for (const auto& cont : m_whileBlock->getContinuations())
+    {
+        cont->setNextBlock(exprBB);
     }
     m_whileBlock->codegen();
     builder->CreateBr(exprBB);

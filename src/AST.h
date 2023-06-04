@@ -277,6 +277,7 @@ public:
 
     std::vector<std::shared_ptr<ReturnAST>> getReturns();
     std::vector<std::shared_ptr<BreakAST>> getBreaks();
+    std::vector<std::shared_ptr<ContinueAST>> getContinuations();
     void doSemantic() override
     {
         for (const auto& stmt : m_stmts)

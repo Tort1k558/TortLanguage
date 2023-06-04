@@ -120,32 +120,39 @@ main:
 	callq	printf
 	addq	$32, %rsp
 	cmpl	$0, -4(%rbp)
-	js	.LBB3_9
+	js	.LBB3_11
 	cmpl	$98, 4(%rbp)
-	jg	.LBB3_8
+	jg	.LBB3_10
 	leaq	.L__unnamed_2(%rip), %rsi
 	cmpl	$4, 4(%rbp)
-	jg	.LBB3_9
+	jle	.LBB3_6
+	jmp	.LBB3_11
 	.p2align	4, 0x90
+.LBB3_7:
+	incl	4(%rbp)
+	cmpl	$4, 4(%rbp)
+	jg	.LBB3_11
 .LBB3_6:
+	cmpl	$0, 4(%rbp)
+	je	.LBB3_7
 	movl	4(%rbp), %edx
 	subq	$32, %rsp
 	movq	%rsi, %rcx
 	callq	printf
 	addq	$32, %rsp
 	cmpl	$4, 4(%rbp)
-	jg	.LBB3_9
+	jg	.LBB3_11
 	incl	4(%rbp)
 	cmpl	$4, 4(%rbp)
 	jle	.LBB3_6
-	jmp	.LBB3_9
-.LBB3_8:
+	jmp	.LBB3_11
+.LBB3_10:
 	subq	$32, %rsp
 	leaq	.L__unnamed_3(%rip), %rcx
 	xorl	%edx, %edx
 	callq	printf
 	addq	$32, %rsp
-.LBB3_9:
+.LBB3_11:
 	subq	$32, %rsp
 	movl	$6, %ecx
 	callq	fact

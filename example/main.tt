@@ -30,6 +30,11 @@ def main()
     {
     	while b < 5:
 		{
+			if b == 0:
+			{
+				b++;
+				continue;
+			}
 			print(b);
 			if b > 4:
 			{

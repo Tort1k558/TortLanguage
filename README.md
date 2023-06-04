@@ -77,7 +77,6 @@ def div(double a,double b)
 ## TODO
 - Add types: void, float, int8, int16
 - Add arrays
-- Add continue
 - Add loop for 
 - Add modularity
 - Added classes
