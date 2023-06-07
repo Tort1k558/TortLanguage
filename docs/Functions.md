@@ -22,7 +22,7 @@ def nothing()
 }
 ```
 
-## Examples
+### Example
 ```
 def sum(int a,int b)
 {

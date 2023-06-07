@@ -11,7 +11,7 @@ to declare multiple variables, they can be separated by commas
 ```
 type variable1,variable2;
 ```
-There is also the var keyword, which automatically determines the type of the variable at the compilation stage
+There is also the **var** keyword, which automatically determines the type of the variable at the compilation stage
 ```
 var variable1 = 10;
 var variable2 = 3.1415926
@@ -19,7 +19,7 @@ var variable3 = "Hello world!";
 var vairable4 = true;
 ```
 
-## Examples
+### Example
 ```
 int a = 10;
 double b = 3.1415926;
