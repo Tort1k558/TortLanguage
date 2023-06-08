@@ -2,19 +2,20 @@
 ## Binary operators
 At the moment , there are such binary operators in the language
 
-- **+** \- Adding two values
-- **-** \- Subtracting two values
+- **\*\*** \- Raising the left value to the power of the right value
 - **\*** \- Multiplication of two values
 - **/** \- Dividing two values
-- **\*\*** \- Raising the left value to the power of the right value
+- **+** \- Adding two values
+- **-** \- Subtracting two values
 - **==** \- Сomparison of the equality of two values
 - **<** \- Сomparison indicates that the left value is smaller than the right one
 - **>** \- Сomparison indicates that the left value is greater than the right one
-- **\=** \- Assigning a value to an element
-- **|** \- Bitwise or
 - **&** \- Bitwise and
-- **or** \- Logical or
+- **|** \- Bitwise or
 - **and** \- Logical and
+- **or** \- Logical or
+- **\=** \- Assigning a value to an element
+**The operators are placed in descending order of priority**
 
 ## Unary operators
 

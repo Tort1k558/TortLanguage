@@ -57,14 +57,58 @@ llvm::Value* LLVMValueAST::codegen()
 {
     return m_value;
 }
+llvm::Value* LLVMCallFuncAST::codegen()
+{
+    LLVMManager& manager = LLVMManager::getInstance();
+    auto builder = manager.getBuilder();
+    llvm::Value* val = m_args[0];
+    return builder->CreateCall(m_function, m_args);
+}
 llvm::Value* VarDeclAST::codegen()
 {
     LLVMManager& manager = LLVMManager::getInstance();
     auto context = manager.getContext();
     auto builder = manager.getBuilder();
+    auto module = manager.getModule();
     auto symbolTable  = SymbolTableManager::getInstance().getSymbolTable();
 
+    if (m_isArray)
+    {
+        if (std::dynamic_pointer_cast<LiteralExprAST>(m_sizeArrayAST))
+        {
+            //for simple arrays
+            llvm::Value* value = m_sizeArrayAST->codegen();
 
+            m_sizeArray = llvm::dyn_cast<llvm::ConstantInt>(value)->getZExtValue();
+            llvm::Type* containedType = getType(m_type);
+            llvmType = llvm::ArrayType::get(containedType, m_sizeArray);
+
+            llvm::AllocaInst* alloca = builder->CreateAlloca(llvmType, nullptr, m_name.c_str());
+            symbolTable->addVar(m_name, alloca, containedType);
+
+            return alloca;
+        }
+        else
+        {
+            //for VLA
+            llvm::Value* value = m_sizeArrayAST->codegen();
+            llvm::Value* sizeStack = builder->CreateZExt(value, builder->getInt64Ty());
+
+            llvm::Function* stackSaveFunc = llvm::Intrinsic::getDeclaration(module.get(), llvm::Intrinsic::stacksave);
+            llvm::Value* stackPtr = builder->CreateCall(stackSaveFunc);
+
+            llvm::Type* containedType = getType(m_type);
+            llvm::AllocaInst* alloca = builder->CreateAlloca(containedType, sizeStack);
+            symbolTable->addVar(m_name, alloca, containedType);
+
+            llvm::Function* stackRestoreFunc = llvm::Intrinsic::getDeclaration(module.get(), llvm::Intrinsic::stackrestore);
+
+            std::shared_ptr<BlockAST> block = manager.getCurrentBlock();
+            block->addStatementBeforeReturn(std::make_shared<LLVMCallFuncAST>(stackRestoreFunc, stackPtr));
+
+            return alloca;
+        }
+    }
     llvm::AllocaInst* alloca = builder->CreateAlloca(llvmType, nullptr, m_name.c_str());
     llvm::Value* value = nullptr;
     if (!m_value)
@@ -92,7 +136,6 @@ llvm::Value* VarDeclAST::codegen()
     }
 
     builder->CreateStore(value, alloca);
-
     symbolTable->addVar(m_name, alloca);
 
     return alloca;
@@ -103,24 +146,16 @@ llvm::Value* VarExprAST::codegen()
     LLVMManager& manager = LLVMManager::getInstance();
     auto builder = manager.getBuilder();
     auto symbolTable = SymbolTableManager::getInstance().getSymbolTable();
-
-    llvm::Value* var = symbolTable->getValueVar(m_name);
-    return var;
-}
-
-llvm::Value* AssignExprAST::codegen()
-{
-    LLVMManager& manager = LLVMManager::getInstance();
-    auto builder = manager.getBuilder();
-    auto symbolTable = SymbolTableManager::getInstance().getSymbolTable();
-
-    llvm::Value* var = symbolTable->getPtrVar(m_varName);
-    llvm::Value* value = m_val->codegen();
-    if (!value) {
-        return nullptr;
+    llvm::Value* var = nullptr;
+    if (m_getPtr)
+    {
+        var = symbolTable->getPtrVar(m_name);
     }
-    builder->CreateStore(value, var);
-    return value;
+    else
+    {
+        var = symbolTable->getValueVar(m_name);
+    }
+    return var;
 }
 
 llvm::Value* LiteralExprAST::codegen()
@@ -135,15 +170,15 @@ llvm::Value* LiteralExprAST::codegen()
     }
     else if (m_type == TokenType::IntLiteral)
     {
-        return llvm::ConstantInt::get(llvm::Type::getInt32Ty(*context), std::stoi(m_value));
+        return builder->getInt32(std::stoi(m_value));
     }
     else if (m_type == TokenType::TrueLiteral)
     {
-        return llvm::ConstantInt::get(llvm::Type::getInt1Ty(*context), true);
+        return builder->getInt1(true);
     }
     else if (m_type == TokenType::FalseLiteral)
     {
-        return llvm::ConstantInt::get(llvm::Type::getInt1Ty(*context), false);
+        return builder->getInt1(false);
     }
     else if (m_type == TokenType::StringLiteral)
     {
@@ -164,6 +199,16 @@ llvm::Value* BinaryExprAST::codegen()
     //for these operators, the code must be generated differently
     switch (m_op)
     {
+    case TokenType::Assign:
+    {
+        llvm::Value* var = m_lhs->codegen();
+        llvm::Value* value = m_rhs->codegen();
+        if (!value) {
+            return nullptr;
+        }
+        builder->CreateStore(value, var);
+        return value;
+    }
     case TokenType::Or:
     {
         llvm::Value* lhsValue = m_lhs->codegen();
@@ -429,6 +474,31 @@ llvm::Value* UnaryExprAST::codegen()
     return nullptr;
 }
 
+llvm::Value* IndexExprAST::codegen()
+{
+    LLVMManager& manager = LLVMManager::getInstance();
+    auto builder = manager.getBuilder();
+    auto context = manager.getContext();
+    auto symbolTable = SymbolTableManager::getInstance().getSymbolTable();
+    llvm::Value* varLocation = symbolTable->getPtrVar(m_name);
+    llvm::Value* varValue = symbolTable->getValueVar(m_name);
+    llvm::Type* varType = symbolTable->getContainedTypeVar(m_name);
+    switch (m_op)
+    {
+    case TokenType::OpenBrace:
+    {
+        llvm::Value* indexValue = m_value->codegen();
+        llvm::Value* elementPtr = builder->CreateGEP(varType, varValue, indexValue, "ptrtoelementarray", true);
+        if (m_getPtr)
+        {
+            return elementPtr;
+        }
+        return builder->CreateLoad(varType,elementPtr,"elementarray");
+    }
+    }
+    return nullptr;
+}
+
 llvm::Value* ConsoleOutputExprAST::codegen()
 {
     LLVMManager& manager = LLVMManager::getInstance();
@@ -499,19 +569,15 @@ llvm::Value* BlockAST::codegen()
     auto builder = manager.getBuilder();
 
     llvm::Value* lastVal = nullptr;
-    for (const auto& stmt : m_stmts) {
-        lastVal = stmt->codegen();
+    for (size_t i = 0; i < m_stmts.size(); i++) {
+        if (std::dynamic_pointer_cast<BlockAST>(m_stmts[i]))
+        {
+            manager.setCurrentBlock(std::dynamic_pointer_cast<BlockAST>(m_stmts[i]));
+        }
+        lastVal = m_stmts[i]->codegen();
 
         //No need to generate code after return,break,continue
-        if (std::dynamic_pointer_cast<ReturnAST>(stmt))
-        {
-            break;
-        }
-        if (std::dynamic_pointer_cast<BreakAST>(stmt))
-        {
-            break;
-        }
-        if (std::dynamic_pointer_cast<ContinueAST>(stmt))
+        if (std::dynamic_pointer_cast<ReturnAST>(m_stmts[i]) || std::dynamic_pointer_cast<BreakAST>(m_stmts[i]) || std::dynamic_pointer_cast<ContinueAST>(m_stmts[i]))
         {
             break;
         }
@@ -524,6 +590,7 @@ llvm::Value* BlockAST::codegen()
 
     return lastVal;
 }
+
 std::vector<std::shared_ptr<ReturnAST>> BlockAST::getReturns()
 {
     std::vector<std::shared_ptr<ReturnAST>> returns;
@@ -683,6 +750,7 @@ std::vector<std::shared_ptr<ContinueAST>> BlockAST::getContinuations()
     }
     return continuations;
 }
+
 llvm::Value* ProtFunctionAST::codegen() 
 {
     LLVMManager& manager = LLVMManager::getInstance();
@@ -756,6 +824,7 @@ llvm::Value* FunctionAST::codegen()
     }
 
     m_body->extendSymbolTable(symbolTableFunc);
+    manager.setCurrentBlock(m_body);
     m_body->codegen();
     if (returnBB)
     {

@@ -24,22 +24,23 @@ private:
 	void eat(TokenType type);
 	Token checkType();
 	Token checkLiteral();
+	Token checkUnary();
 	std::shared_ptr<BlockAST> parseBlock();
 	std::vector<std::shared_ptr<ASTNode>> parseStatement();
 	std::shared_ptr<ASTNode> parseLiteral();
-	std::shared_ptr<VarExprAST> parseVariable();
+	std::shared_ptr<VarExprAST> parseVariable(bool getPtr);
 	std::shared_ptr<UnaryExprAST> parseUnary(bool prefix);
 	std::shared_ptr<CastAST> parseCast();
-	std::shared_ptr<AssignExprAST> parseAssign();
 	std::shared_ptr<ASTNode> parseFactor();
 	std::shared_ptr<ASTNode> parseExponentiation();
 	std::shared_ptr<ASTNode> parseMulDiv();
 	std::shared_ptr<ASTNode> parsePlusMinus();
 	std::shared_ptr<ASTNode> parseCompareExpr();
-	std::shared_ptr<ASTNode> parseLogicalAndExpr();
-	std::shared_ptr<ASTNode> parseLogicalOrExpr();
 	std::shared_ptr<ASTNode> parseBitOrExpr();
 	std::shared_ptr<ASTNode> parseBitAndExpr();
+	std::shared_ptr<ASTNode> parseLogicalAndExpr();
+	std::shared_ptr<ASTNode> parseLogicalOrExpr();
+	std::shared_ptr<ASTNode> parseAssign();
 	std::shared_ptr<ASTNode> parseExpression();
 	std::vector<std::shared_ptr<ASTNode>> parseVarDecl();
 	std::shared_ptr<ASTNode> parseFunction();
@@ -51,6 +52,6 @@ private:
 	std::shared_ptr<WhileAST> parseWhile();
 	std::shared_ptr<BreakAST> parseBreak();
 	std::shared_ptr<ContinueAST> parseContinue();
-
+	std::shared_ptr<IndexExprAST> parseIndex();
 };
 

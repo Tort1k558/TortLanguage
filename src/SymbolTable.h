@@ -17,6 +17,7 @@ class SymbolTable
 		std::string name;
 		llvm::Type* type;
 		llvm::Value* varValue;
+		llvm::Type* containedType;
 	};
 	struct NodeFuncTable
 	{
@@ -28,13 +29,14 @@ class SymbolTable
 public:
 	SymbolTable()
 		:m_symbolTable(std::vector<std::variant<NodeVarTable, NodeFuncTable>>()) {};
-	void addVar(const std::string& name, llvm::Value* value);
+	void addVar(const std::string& name, llvm::Value* value, llvm::Type* containedType = nullptr);
 	void addFunction(const std::string& name, llvm::Function* func);
 	void addFunctionReturnType(const std::string& name, llvm::Type* returnType);
-	void addVarType(const std::string& name, llvm::Type* type);
+	void addVarType(const std::string& name, llvm::Type* type, llvm::Type* containedType = nullptr);
 	llvm::Value* getValueVar(const std::string& name);
 	llvm::Value* getPtrVar(const std::string& name);
 	llvm::Type* getTypeVar(const std::string& name);
+	llvm::Type* getContainedTypeVar(const std::string& name);
 	llvm::Type* getFunctionReturnType(const std::string& name);
 	void extend(SymbolTable* table);
 private:

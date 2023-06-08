@@ -75,11 +75,11 @@ std::shared_ptr<ASTNode> Parser::parseLiteral()
 	return nullptr;
 }
 
-std::shared_ptr<VarExprAST> Parser::parseVariable()
+std::shared_ptr<VarExprAST> Parser::parseVariable(bool getPtr)
 {
 	std::string varName = check({TokenType::Identifier}).value;
 	eat(TokenType::Identifier);
-	return std::make_shared<VarExprAST>(varName);
+	return std::make_shared<VarExprAST>(varName,getPtr);
 }
 
 std::shared_ptr<UnaryExprAST> Parser::parseUnary(bool prefix)
@@ -119,7 +119,22 @@ std::shared_ptr<CastAST> Parser::parseCast()
 
 std::shared_ptr<ASTNode> Parser::parseExpression()
 {
-	return parseLogicalOrExpr();
+	return parseAssign();
+}
+std::shared_ptr<ASTNode> Parser::parseAssign()
+{
+	std::shared_ptr<ASTNode> lhs = parseLogicalOrExpr();
+
+	while (m_tokenStream->type == TokenType::Assign)
+	{
+		TokenType op = m_tokenStream->type;
+		eat(op);
+
+		std::shared_ptr<ASTNode> rhs = parseLogicalOrExpr();
+		lhs = std::make_shared<BinaryExprAST>(op, lhs, rhs);
+	}
+
+	return lhs;
 }
 std::shared_ptr<ASTNode> Parser::parseLogicalOrExpr()
 {
@@ -257,13 +272,21 @@ std::shared_ptr<ASTNode> Parser::parseFactor()
 		{
 			return parseCallFunc();
 		}
-		else if (m_tokenStream.next().type == TokenType::Increment || m_tokenStream.next().type == TokenType::Decrement)
+		else if (m_tokenStream.next().type == TokenType::OpenBrace)
+		{
+			return parseIndex();
+		}
+		else if (checkUnary().type != TokenType::Invalid)
 		{
 			return parseUnary(false);
 		}
-		return parseVariable();
+		else if (m_tokenStream.next().type == TokenType::Assign)
+		{
+			return parseVariable(true);
+		}
+		return parseVariable(false);
 	}
-	else if (check({TokenType::Decrement,TokenType::Increment}).type != TokenType::Invalid)
+	else if (checkUnary().type != TokenType::Invalid)
 	{
 		return parseUnary(true);
 	}
@@ -281,14 +304,6 @@ std::shared_ptr<ASTNode> Parser::parseFactor()
 	}
 }
 
-std::shared_ptr<AssignExprAST> Parser::parseAssign()
-{
-	std::string varName = m_tokenStream->value;
-	eat(TokenType::Identifier);
-	eat(TokenType::Assign);
-	return std::make_shared<AssignExprAST>(varName, parseExpression());
-}
-
 std::vector<std::shared_ptr<ASTNode>> Parser::parseStatement()
 {
 	switch (m_tokenStream->type)
@@ -301,16 +316,8 @@ std::vector<std::shared_ptr<ASTNode>> Parser::parseStatement()
 	case TokenType::Bool:
 	case TokenType::String:
 	case TokenType::Var:
-		if (m_tokenStream.next().type == TokenType::Identifier)
-		{
-			return parseVarDecl();
-		}
-		throw std::runtime_error("ERROR::PARSER::Variable name not specified");
+		return parseVarDecl();
 	case TokenType::Identifier:
-		if (m_tokenStream.next().type == TokenType::Assign)
-		{
-			return { parseAssign() };
-		}
 		if (m_tokenStream.next().type == TokenType::OpenParen)
 		{
 			return { parseCallFunc() };
@@ -355,6 +362,17 @@ std::vector<std::shared_ptr<ASTNode>> Parser::parseVarDecl()
 	TokenType varType = checkType().type;
 	eat(varType);
 
+	//Checking whether the array is
+	bool isArray = false;
+	std::shared_ptr<ASTNode> sizeArray;
+	if (check({ TokenType::OpenBrace }).type != TokenType::Invalid)
+	{
+		isArray = true;
+		eat(TokenType::OpenBrace);
+		sizeArray = parseExpression();
+		eat(TokenType::CloseBrace);
+	}
+
 	while (m_tokenStream->type != TokenType::Semicolon)
 	{
 		if (m_tokenStream->type == TokenType::Comma)
@@ -379,7 +397,7 @@ std::vector<std::shared_ptr<ASTNode>> Parser::parseVarDecl()
 	}
 	for (const auto& assign : varsAssign)
 	{
-		vars.push_back(std::make_shared<VarDeclAST>(assign.first, assign.second, varType));
+		vars.push_back(std::make_shared<VarDeclAST>(assign.first, assign.second, varType, isArray, sizeArray));
 	}
 	return vars;
 }
@@ -578,6 +596,24 @@ std::shared_ptr<ContinueAST> Parser::parseContinue()
 	return std::make_shared<ContinueAST>();
 }
 
+std::shared_ptr<IndexExprAST> Parser::parseIndex()
+{
+	TokenType op;
+	std::string varName;
+	std::shared_ptr<ASTNode> value = nullptr;
+	varName = m_tokenStream->value;
+	eat(TokenType::Identifier);
+	op = m_tokenStream->type;
+	if (op == TokenType::OpenBrace)
+	{
+		eat(TokenType::OpenBrace);
+		value = parseExpression();
+		eat(TokenType::CloseBrace);
+	}
+	bool getPtr = m_tokenStream->type == TokenType::Assign;
+	return std::make_shared<IndexExprAST>(op, varName, getPtr, value);
+}
+
 Token Parser::check(std::vector<TokenType> types)
 {
 	Token curToken = *m_tokenStream;
@@ -599,6 +635,15 @@ Token Parser::checkType()
 Token Parser::checkLiteral()
 {
 	return check({ TokenType::IntLiteral, TokenType::DoubleLiteral, TokenType::TrueLiteral, TokenType::FalseLiteral, TokenType::StringLiteral});
+}
+
+Token Parser::checkUnary()
+{
+	if (m_tokenStream.next().type == TokenType::Increment || m_tokenStream.next().type == TokenType::Decrement)
+	{
+		return m_tokenStream.next();
+	}
+	return check({TokenType::Decrement, TokenType::Increment});
 }
 void Parser::eat(TokenType type)
 {

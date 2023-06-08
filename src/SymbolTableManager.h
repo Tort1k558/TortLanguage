@@ -4,20 +4,9 @@
 class SymbolTableManager
 {
 public:
-	static SymbolTableManager& getInstance()
-	{
-		static SymbolTableManager instance;
-		return instance;
-	}
-
-	std::shared_ptr<SymbolTable> getSymbolTable()
-	{
-		return m_symbolTable;
-	}
-	void setSymbolTable(std::shared_ptr<SymbolTable> symbolTable)
-	{
-		m_symbolTable = symbolTable;
-	}
+	static SymbolTableManager& getInstance();
+	std::shared_ptr<SymbolTable> getSymbolTable();
+	void setSymbolTable(std::shared_ptr<SymbolTable> symbolTable);
 private:
 	SymbolTableManager()
 		: m_symbolTable(){}

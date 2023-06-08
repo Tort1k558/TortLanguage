@@ -212,6 +212,14 @@ Token Lexer::getPunctuation() {
     {
         return Token{ TokenType::CloseParen, m_input.substr(startPos, m_currentPos - startPos) };
     }
+    else if (m_input[m_currentPos - 1] == '[')
+    {
+        return Token{ TokenType::OpenBrace, m_input.substr(startPos, m_currentPos - startPos) };
+    }
+    else if (m_input[m_currentPos - 1] == ']')
+    {
+        return Token{ TokenType::CloseBrace, m_input.substr(startPos, m_currentPos - startPos) };
+    }
     else if (m_input[m_currentPos - 1] == ',')
     {
         return Token{ TokenType::Comma, m_input.substr(startPos, m_currentPos - startPos) };
@@ -246,10 +254,10 @@ bool Lexer::isOperator(char c) {
     return c == '+' || c == '-' || c == '*' || c == '/' || c == '=' || c == '<' || c == '>' || c == '&' || c =='|';
 }
 bool Lexer::isPunctuation(char c) {
-    return c == ';' || c == ',' || c == '(' || c == ')' || c == '{' || c == '}' || c == ':';
+    return c == ';' || c == ',' || c == '(' || c == ')' || c == '{' || c == '}' || c == ':' || c == '[' || c == ']';
 }
 bool Lexer::isQuote(char c) {
-    return c == '\'' || c == '"';
+    return c == '"';
 }
 void Lexer::skipWhitespaceAndComments() {
     while (m_currentPos < m_input.length() && (isspace(m_input[m_currentPos]) || isComment())) {

@@ -12,7 +12,6 @@
 #include"src/LLVMManager.h"
 #include"src/Compiler.h"
 
-
 int main(int argc, char* argv[]) {
     Compiler compiler;
 	if (argc < 2)

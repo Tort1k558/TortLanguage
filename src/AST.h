@@ -15,6 +15,7 @@
 #include"Token.h"
 #include"SymbolTable.h"
 #include"SymbolTableManager.h"
+#include"LLVMManager.h"
 
 llvm::Type* getType(TokenType type);
 
@@ -41,14 +42,41 @@ private:
     llvm::Value* m_value;
 };
 
+class LLVMCallFuncAST : public ASTNode
+{
+public:
+    LLVMCallFuncAST() = delete;
+    LLVMCallFuncAST(llvm::Function* function,llvm::ArrayRef<llvm::Value*> args = std::nullopt) 
+        : m_function(function),m_args(args)
+    {}
+    void doSemantic() override
+    {
+        llvmType = m_function->getFunctionType()->getReturnType();
+    }
+    llvm::Value* codegen() override;
+private:
+    llvm::Function* m_function;
+    std::vector<llvm::Value*> m_args;
+};
+
 class VarDeclAST : public ASTNode {
 public:
     VarDeclAST() = delete;
-    VarDeclAST(const std::string& name, std::shared_ptr<ASTNode> value, TokenType type)
-        : m_name(name), m_value(value), m_type(type) {}
+    VarDeclAST(const std::string& name, std::shared_ptr<ASTNode> value, TokenType type, bool isArray = false, std::shared_ptr<ASTNode> sizeArray = nullptr)
+        : m_name(name), m_value(value), m_type(type),m_isArray(isArray), m_sizeArrayAST(sizeArray) {}
     void doSemantic() override
     {
+        LLVMManager& manager = LLVMManager::getInstance();
+        auto builder = manager.getBuilder();
         auto symbolTable = SymbolTableManager::getInstance().getSymbolTable();
+
+        if (m_isArray)
+        {
+            llvmType = builder->getPtrTy();
+            symbolTable->addVarType(m_name, llvmType, getType(m_type));
+            return;
+        }
+
         llvmType = getType(m_type);
         if (m_type == TokenType::Var)
         {
@@ -59,7 +87,6 @@ public:
             m_value->doSemantic();
             llvmType = m_value->llvmType;
         }
-
         symbolTable->addVarType(m_name, llvmType);
     }
     llvm::Value* codegen() override;
@@ -67,12 +94,16 @@ private:
     std::string m_name;
     std::shared_ptr<ASTNode> m_value;
     TokenType m_type;
+    bool m_isArray;
+    std::shared_ptr<ASTNode> m_sizeArrayAST;
+    uint64_t m_sizeArray;
 };
 
 class VarExprAST : public ASTNode {
 public:
     VarExprAST() = delete;
-    VarExprAST(std::string name) : m_name(std::move(name)) { }
+    VarExprAST(std::string name,bool getPtr = false) 
+        : m_name(std::move(name)), m_getPtr(getPtr) { }
 
     void doSemantic() override
     {
@@ -81,26 +112,8 @@ public:
     llvm::Value* codegen() override;
 private:
     std::string m_name;
-    llvm::Value* m_location;
+    bool m_getPtr;
 };
-
-class AssignExprAST : public ASTNode {
-public:
-    AssignExprAST() = delete;
-    AssignExprAST(const std::string& varName, std::shared_ptr<ASTNode> val)
-        : m_varName(varName), m_val(std::move(val)) {}
-
-    void doSemantic() override
-    {
-
-    }
-    llvm::Value* codegen() override;
-
-private:
-    const std::string m_varName;
-    std::shared_ptr<ASTNode> m_val;
-};
-
 
 class LiteralExprAST : public ASTNode {
 public:
@@ -151,6 +164,7 @@ private:
     TokenType m_op;
     std::shared_ptr<ASTNode> m_lhs, m_rhs;
 };
+
 class UnaryExprAST : public ASTNode {
 public:
     UnaryExprAST() = delete;
@@ -168,6 +182,26 @@ private:
     std::string m_name;
     bool m_prefix;
 };
+
+class IndexExprAST : public ASTNode
+{
+public:
+    IndexExprAST() = delete;
+    IndexExprAST(TokenType op, const std::string& name,bool getPtr = false, std::shared_ptr<ASTNode> value = nullptr)
+        : m_op(op), m_name(name), m_getPtr(getPtr), m_value(value) {}
+    void doSemantic() override
+    {
+        auto symbolTable = SymbolTableManager::getInstance().getSymbolTable();
+        llvmType = symbolTable->getContainedTypeVar(m_name);
+    }
+    llvm::Value* codegen() override;
+private:
+    TokenType m_op;
+    std::string m_name;
+    std::shared_ptr<ASTNode> m_value;
+    bool m_getPtr;
+};
+
 class ConsoleOutputExprAST : public ASTNode {
 public:
     ConsoleOutputExprAST() = delete;
@@ -269,6 +303,25 @@ public:
 
     void addStatement(std::shared_ptr<ASTNode> stmt) {
         m_stmts.push_back(std::move(stmt));
+    }
+    void addStatementBeforeReturn(std::shared_ptr<ASTNode> stmt) {
+        size_t index = 0;
+        for (size_t i = 0; i < m_stmts.size(); i++)
+        {
+            if (std::dynamic_pointer_cast<ReturnAST>(m_stmts[i]) || std::dynamic_pointer_cast<BreakAST>(m_stmts[i]) || std::dynamic_pointer_cast<ContinueAST>(m_stmts[i]))
+            {
+                index = i;
+                break;
+            }
+        }
+        if (index == 0)
+        {
+            m_stmts.push_back(stmt);
+        }
+        else
+        {
+            m_stmts.emplace(m_stmts.begin() + index, stmt);
+        }
     }
     void extendSymbolTable(std::shared_ptr<SymbolTable> symbolTable)
     {
