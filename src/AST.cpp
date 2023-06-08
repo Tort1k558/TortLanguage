@@ -524,7 +524,7 @@ llvm::Value* ConsoleOutputExprAST::codegen()
         value = m_expr->codegen();
     }
 
-    std::string formatStr = "%s";
+    std::string formatStr = "%s\n";
     std::vector<llvm::Value*> printfArgs;
     if (value)
     {
@@ -540,8 +540,8 @@ llvm::Value* ConsoleOutputExprAST::codegen()
         {
             formatStr = "%s\n";
             llvm::Value* bool_str = builder->CreateGlobalStringPtr("%s");
-            llvm::Value* true_str = builder->CreateGlobalStringPtr("true\n");
-            llvm::Value* false_str = builder->CreateGlobalStringPtr("false\n");
+            llvm::Value* true_str = builder->CreateGlobalStringPtr("true");
+            llvm::Value* false_str = builder->CreateGlobalStringPtr("false");
             llvm::Value* result = builder->CreateSelect(value, true_str, false_str);
             printfArgs.push_back(bool_str);
             printfArgs.push_back(result);
@@ -550,9 +550,9 @@ llvm::Value* ConsoleOutputExprAST::codegen()
     }
     else
     {
-        formatStr = "%s";
+        formatStr = "%s\n";
         printfArgs.push_back(builder->CreateGlobalStringPtr(formatStr));
-        printfArgs.push_back(builder->CreateGlobalStringPtr("\n"));
+        printfArgs.push_back(builder->CreateGlobalStringPtr(""));
         return builder->CreateCall(printFunc, printfArgs);
     }
 
@@ -1111,6 +1111,7 @@ llvm::Value* BreakAST::codegen()
     builder->CreateBr(m_nextBlock);
     return nullptr;
 }
+
 llvm::Value* ContinueAST::codegen()
 {
     LLVMManager& manager = LLVMManager::getInstance();

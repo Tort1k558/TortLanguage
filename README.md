@@ -75,8 +75,7 @@ def div(double a,double b)
 - Windows
 
 ## TODO
-- Add types: void, float, int8, int16
-- Add arrays
+- Add types: float, int8, int16
 - Add loop for 
 - Add modularity
 - Added classes

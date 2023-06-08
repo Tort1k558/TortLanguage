@@ -1,9 +1,9 @@
-def sum(int a,int b)
+def int sum(int a,int b)
 {
 	return a+b;
 }
 
-def fact(int a)
+def int fact(int a)
 {
 	if a == 0 or a == 1:
 	{
@@ -17,7 +17,7 @@ def fact(int a)
 
 def double div(double a,double b);
 
-def main()
+def int main()
 {
     int a = 2,b = -1;
     int c = cast<int>(a or b)+4;
@@ -28,6 +28,7 @@ def main()
     }
     else if b < 99:
     {
+		print("loop while:");
     	while b < 5:
 		{
 			if b == 0:
@@ -35,11 +36,11 @@ def main()
 				b++;
 				continue;
 			}
-			print(b);
-			if b > 4:
+			if b > 3:
 			{
 				break;
 			}
+			print(b);
 			b++;
 		}
     }
@@ -47,6 +48,7 @@ def main()
 	{
 		print(000000);
 	}
+	print();
     print(fact(6));
 	print(2|1);
 	print(10.0 ** 5.0);
@@ -60,7 +62,7 @@ def main()
 }
 
 
-def div(double a,double b)
+def double div(double a,double b)
 {
 	return a / b;
 }

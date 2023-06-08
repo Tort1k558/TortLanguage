@@ -123,7 +123,12 @@ main:
 	js	.LBB3_11
 	cmpl	$98, 4(%rbp)
 	jg	.LBB3_10
-	leaq	.L__unnamed_2(%rip), %rsi
+	subq	$32, %rsp
+	leaq	.L__unnamed_2(%rip), %rcx
+	leaq	.L.str(%rip), %rdx
+	callq	printf
+	addq	$32, %rsp
+	leaq	.L__unnamed_3(%rip), %rsi
 	cmpl	$4, 4(%rbp)
 	jle	.LBB3_6
 	jmp	.LBB3_11
@@ -135,44 +140,47 @@ main:
 .LBB3_6:
 	cmpl	$0, 4(%rbp)
 	je	.LBB3_7
+	cmpl	$3, 4(%rbp)
+	jg	.LBB3_11
 	movl	4(%rbp), %edx
 	subq	$32, %rsp
 	movq	%rsi, %rcx
 	callq	printf
 	addq	$32, %rsp
-	cmpl	$4, 4(%rbp)
-	jg	.LBB3_11
 	incl	4(%rbp)
 	cmpl	$4, 4(%rbp)
 	jle	.LBB3_6
 	jmp	.LBB3_11
 .LBB3_10:
 	subq	$32, %rsp
-	leaq	.L__unnamed_3(%rip), %rcx
+	leaq	.L__unnamed_4(%rip), %rcx
 	xorl	%edx, %edx
 	callq	printf
 	addq	$32, %rsp
 .LBB3_11:
 	subq	$32, %rsp
+	leaq	.L__unnamed_5(%rip), %rcx
+	leaq	.L__unnamed_6(%rip), %rdx
+	callq	printf
 	movl	$6, %ecx
 	callq	fact
-	leaq	.L__unnamed_4(%rip), %rcx
+	leaq	.L__unnamed_7(%rip), %rcx
 	movl	%eax, %edx
 	callq	printf
-	leaq	.L__unnamed_5(%rip), %rcx
+	leaq	.L__unnamed_8(%rip), %rcx
 	movl	$3, %edx
 	callq	printf
 	vmovq	__real@4024000000000000(%rip), %xmm0
 	vmovsd	__real@4014000000000000(%rip), %xmm1
 	callq	pow
 	vmovq	%xmm0, %rdx
-	leaq	.L__unnamed_6(%rip), %rcx
+	leaq	.L__unnamed_9(%rip), %rcx
 	vmovdqa	%xmm0, %xmm1
 	callq	printf
-	leaq	.L__unnamed_7(%rip), %rcx
-	leaq	.L.str(%rip), %rdx
+	leaq	.L__unnamed_10(%rip), %rcx
+	leaq	.L.str.1(%rip), %rdx
 	callq	printf
-	leaq	.L__unnamed_8(%rip), %rcx
+	leaq	.L__unnamed_11(%rip), %rcx
 	xorl	%edx, %edx
 	callq	printf
 	addq	$32, %rsp
@@ -183,7 +191,7 @@ main:
 	movabsq	$4607182418800017408, %rcx
 	movq	%rcx, (%rax)
 	subq	$32, %rsp
-	leaq	.L__unnamed_9(%rip), %rcx
+	leaq	.L__unnamed_12(%rip), %rcx
 	movl	$1, %edx
 	callq	printf
 	addq	$32, %rsp
@@ -198,8 +206,11 @@ main:
 .L__unnamed_1:
 	.asciz	"%d\n"
 
+.L.str:
+	.asciz	"loop while:"
+
 .L__unnamed_2:
-	.asciz	"%d\n"
+	.asciz	"%s\n"
 
 .L__unnamed_3:
 	.asciz	"%d\n"
@@ -208,21 +219,30 @@ main:
 	.asciz	"%d\n"
 
 .L__unnamed_5:
-	.asciz	"%d\n"
+	.asciz	"%s\n"
 
 .L__unnamed_6:
-	.asciz	"%f\n"
-
-.L.str:
-	.asciz	"Hello World!"
+	.zero	1
 
 .L__unnamed_7:
-	.asciz	"%s"
+	.asciz	"%d\n"
 
 .L__unnamed_8:
 	.asciz	"%d\n"
 
 .L__unnamed_9:
+	.asciz	"%f\n"
+
+.L.str.1:
+	.asciz	"Hello World!"
+
+.L__unnamed_10:
+	.asciz	"%s\n"
+
+.L__unnamed_11:
+	.asciz	"%d\n"
+
+.L__unnamed_12:
 	.asciz	"%d\n"
 
 	.globl	_fltused

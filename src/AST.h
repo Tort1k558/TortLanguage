@@ -223,7 +223,7 @@ class ReturnAST : public ASTNode
 public:
     ReturnAST() = delete;
     ReturnAST(std::shared_ptr<ASTNode> retExpr)
-        : m_returnExpr(std::move(retExpr)), m_returnBB(nullptr) {}
+        : m_returnExpr(retExpr), m_returnBB(nullptr) {}
     void doSemantic() override
     {
         if (m_returnExpr)
@@ -382,17 +382,19 @@ public:
     {
         LLVMManager& manager = LLVMManager::getInstance();
         auto context = manager.getContext();
+        auto symbolTable = SymbolTableManager::getInstance().getSymbolTable();
         m_body->doSemantic();
-
+        
+        m_returns = m_body->getReturns();
         if (!m_returnType)
         {
-            m_returns = m_body->getReturns();
             if (!m_returns.empty())
             {
                 std::vector<std::shared_ptr<ReturnAST>> returnRecursion;
 
                 for (const auto& ret : m_returns)
                 {
+                    //If the function in the return value calls itself, skip
                     std::shared_ptr<CallExprAST> callExpr = std::dynamic_pointer_cast<CallExprAST>(ret->getReturnExpr());
                     if (callExpr)
                     {
@@ -402,34 +404,49 @@ public:
                             continue;
                         }
                     }
+
                     ret->doSemantic();
-                    auto symbolTable = SymbolTableManager::getInstance().getSymbolTable();
                     symbolTable->addFunctionReturnType(m_name, ret->llvmType);
                 }
 
                 if (returnRecursion.size() == m_returns.size())
                 {
-                    throw std::runtime_error("ERROR::Could not determine the type of the returned function");
+                    throw std::runtime_error("ERROR::Could not determine the type of the returned function " + m_name + "!");
                 }
 
                 for (const auto& ret : returnRecursion)
                 {
                     ret->doSemantic();
                 }
-                
-                llvm::Type* retType = m_returns[0]->llvmType;
-                for (size_t i = 0; i < m_returns.size(); i++)
-                {
-                    if (m_returns[i]->llvmType != retType)
-                    {
-                        throw std::runtime_error("ERROR::The function cannot return different types of values");
-                    }
-                }
-                m_returnType = retType;
             }
             else
             {
+                //if the function has no type and returns, we return void
+                m_body->addStatement(std::make_shared<ReturnAST>(nullptr));
                 m_returnType = llvm::Type::getVoidTy(*context);
+                llvmType = m_returnType;
+                return;
+            }
+        }
+        else
+        {
+            if (m_returns.empty())
+            {
+                throw std::runtime_error("ERROR::The function " + m_name + " must return the value!");
+            }
+            symbolTable->addFunctionReturnType(m_name, m_returnType);
+            for (const auto& ret : m_returns)
+            {
+                ret->doSemantic();
+            }
+        }
+        //Checking whether all return returns the same type
+        m_returnType = m_returns[0]->llvmType;
+        for (size_t i = 0; i < m_returns.size(); i++)
+        {
+            if (m_returns[i]->llvmType != m_returnType)
+            {
+                throw std::runtime_error("ERROR::The function " + m_name + " cannot return different types of values");
             }
         }
         llvmType = m_returnType;
