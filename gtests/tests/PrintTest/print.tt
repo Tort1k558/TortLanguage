@@ -1,5 +1,9 @@
 def main()
 {
 	print(1111111111);
+	print(3.1415926);
+	print(true);
+	print("Hello world!");
+	print();
 	return 0;
 }

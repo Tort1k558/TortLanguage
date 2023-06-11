@@ -75,11 +75,11 @@ std::shared_ptr<ASTNode> Parser::parseLiteral()
 	return nullptr;
 }
 
-std::shared_ptr<VarExprAST> Parser::parseVariable(bool getPtr)
+std::shared_ptr<VarExprAST> Parser::parseVariable()
 {
 	std::string varName = check({TokenType::Identifier}).value;
 	eat(TokenType::Identifier);
-	return std::make_shared<VarExprAST>(varName,getPtr);
+	return std::make_shared<VarExprAST>(varName);
 }
 
 std::shared_ptr<UnaryExprAST> Parser::parseUnary(bool prefix)
@@ -280,11 +280,7 @@ std::shared_ptr<ASTNode> Parser::parseFactor()
 		{
 			return parseUnary(false);
 		}
-		else if (m_tokenStream.next().type == TokenType::Assign)
-		{
-			return parseVariable(true);
-		}
-		return parseVariable(false);
+		return parseVariable();
 	}
 	else if (checkUnary().type != TokenType::Invalid)
 	{
@@ -363,14 +359,15 @@ std::vector<std::shared_ptr<ASTNode>> Parser::parseVarDecl()
 	eat(varType);
 
 	//Checking whether the array is
-	bool isArray = false;
-	std::shared_ptr<ASTNode> sizeArray;
+	std::vector<std::shared_ptr<ASTNode>> sizeArray;
 	if (check({ TokenType::OpenBrace }).type != TokenType::Invalid)
 	{
-		isArray = true;
-		eat(TokenType::OpenBrace);
-		sizeArray = parseExpression();
-		eat(TokenType::CloseBrace);
+		while (m_tokenStream->type == TokenType::OpenBrace)
+		{
+			eat(TokenType::OpenBrace);
+			sizeArray.push_back(parseExpression());
+			eat(TokenType::CloseBrace);
+		}
 	}
 
 	while (m_tokenStream->type != TokenType::Semicolon)
@@ -397,7 +394,7 @@ std::vector<std::shared_ptr<ASTNode>> Parser::parseVarDecl()
 	}
 	for (const auto& assign : varsAssign)
 	{
-		vars.push_back(std::make_shared<VarDeclAST>(assign.first, assign.second, varType, isArray, sizeArray));
+		vars.push_back(std::make_shared<VarDeclAST>(assign.first, varType, assign.second, sizeArray));
 	}
 	return vars;
 }
@@ -600,18 +597,26 @@ std::shared_ptr<IndexExprAST> Parser::parseIndex()
 {
 	TokenType op;
 	std::string varName;
-	std::shared_ptr<ASTNode> value = nullptr;
 	varName = m_tokenStream->value;
 	eat(TokenType::Identifier);
 	op = m_tokenStream->type;
+	std::vector<std::shared_ptr<ASTNode>> indexes;
+
 	if (op == TokenType::OpenBrace)
 	{
 		eat(TokenType::OpenBrace);
-		value = parseExpression();
+		indexes.push_back(parseExpression());
 		eat(TokenType::CloseBrace);
+
+		while (m_tokenStream->type == TokenType::OpenBrace)
+		{
+			eat(TokenType::OpenBrace);
+			indexes.push_back(parseExpression());
+			eat(TokenType::CloseBrace);
+		}
 	}
 	bool getPtr = m_tokenStream->type == TokenType::Assign;
-	return std::make_shared<IndexExprAST>(op, varName, getPtr, value);
+	return std::make_shared<IndexExprAST>(varName, indexes, getPtr);
 }
 
 Token Parser::check(std::vector<TokenType> types)

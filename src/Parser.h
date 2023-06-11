@@ -28,7 +28,7 @@ private:
 	std::shared_ptr<BlockAST> parseBlock();
 	std::vector<std::shared_ptr<ASTNode>> parseStatement();
 	std::shared_ptr<ASTNode> parseLiteral();
-	std::shared_ptr<VarExprAST> parseVariable(bool getPtr);
+	std::shared_ptr<VarExprAST> parseVariable();
 	std::shared_ptr<UnaryExprAST> parseUnary(bool prefix);
 	std::shared_ptr<CastAST> parseCast();
 	std::shared_ptr<ASTNode> parseFactor();

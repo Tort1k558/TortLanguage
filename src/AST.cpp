@@ -53,18 +53,18 @@ llvm::Value* castType(llvm::Value* value, llvm::Type* type)
         throw std::runtime_error("ERROR::AST::Invalid Cast type!");
     }
 }
-llvm::Value* LLVMValueAST::codegen()
+void LLVMValueAST::codegen()
 {
-    return m_value;
+    llvmValue = m_value;
 }
-llvm::Value* LLVMCallFuncAST::codegen()
+void LLVMCallFuncAST::codegen()
 {
     LLVMManager& manager = LLVMManager::getInstance();
     auto builder = manager.getBuilder();
     llvm::Value* val = m_args[0];
-    return builder->CreateCall(m_function, m_args);
+    llvmValue = builder->CreateCall(m_function, m_args);
 }
-llvm::Value* VarDeclAST::codegen()
+void VarDeclAST::codegen()
 {
     LLVMManager& manager = LLVMManager::getInstance();
     auto context = manager.getContext();
@@ -72,41 +72,82 @@ llvm::Value* VarDeclAST::codegen()
     auto module = manager.getModule();
     auto symbolTable  = SymbolTableManager::getInstance().getSymbolTable();
 
-    if (m_isArray)
+    if (!m_sizeArrayAST.empty())
     {
-        if (std::dynamic_pointer_cast<LiteralExprAST>(m_sizeArrayAST))
+        std::vector<int> indexesVLA;
+        std::vector<llvm::Value*> values;
+        for (const auto& val : m_sizeArrayAST)
+        {
+            val->codegen();
+            llvm::Value* value = val->getLValue();
+            if (llvm::dyn_cast<llvm::ConstantInt>(value))
+            {
+                llvm::ConstantInt* constInt = llvm::dyn_cast<llvm::ConstantInt>(value);
+                values.push_back(llvm::ConstantInt::get(builder->getInt64Ty(),constInt->getSExtValue()));
+            }
+            else
+            {
+                values.push_back(builder->CreateZExt(value, builder->getInt64Ty()));
+            }
+        }
+        for (size_t i = 0; i < values.size(); i++)
+        {
+            if (!llvm::dyn_cast<llvm::ConstantInt>(values[i]))
+            {
+                indexesVLA.push_back(i);
+            }
+        }
+        if (indexesVLA.empty())
         {
             //for simple arrays
-            llvm::Value* value = m_sizeArrayAST->codegen();
-
-            m_sizeArray = llvm::dyn_cast<llvm::ConstantInt>(value)->getZExtValue();
             llvm::Type* containedType = getType(m_type);
-            llvmType = llvm::ArrayType::get(containedType, m_sizeArray);
+            uint64_t sizeArray;
+            for (size_t i = values.size()-1; i > 0; i--)
+            {
+                sizeArray = llvm::dyn_cast<llvm::ConstantInt>(values[i])->getZExtValue();
+                containedType = llvm::ArrayType::get(containedType, sizeArray);
+            }
+            sizeArray = llvm::dyn_cast<llvm::ConstantInt>(values[0])->getZExtValue();
 
+            containedType = llvm::ArrayType::get(containedType, sizeArray);
+            llvmType = containedType;
+            
             llvm::AllocaInst* alloca = builder->CreateAlloca(llvmType, nullptr, m_name.c_str());
-            symbolTable->addVar(m_name, alloca, containedType);
+            symbolTable->addVarArray(m_name, alloca, containedType);
 
-            return alloca;
+            llvmValue = alloca;
+            return;
         }
         else
         {
             //for VLA
-            llvm::Value* value = m_sizeArrayAST->codegen();
-            llvm::Value* sizeStack = builder->CreateZExt(value, builder->getInt64Ty());
+            int lastIndexVLA = indexesVLA[indexesVLA.size() - 1];
+            llvm::Value* sizeStack = builder->CreateZExt(values[0], builder->getInt64Ty());
+            for (size_t i = 1; i <= lastIndexVLA; i++)
+            {
+                sizeStack = builder->CreateNUWMul(sizeStack, values[i], "multmp");
+            }
+
 
             llvm::Function* stackSaveFunc = llvm::Intrinsic::getDeclaration(module.get(), llvm::Intrinsic::stacksave);
             llvm::Value* stackPtr = builder->CreateCall(stackSaveFunc);
 
             llvm::Type* containedType = getType(m_type);
+            for (size_t i = values.size()-1; i > lastIndexVLA; i--)
+            {
+                uint64_t sizeArray = llvm::dyn_cast<llvm::ConstantInt>(values[i])->getZExtValue();
+                containedType = llvm::ArrayType::get(containedType, sizeArray);
+            }
             llvm::AllocaInst* alloca = builder->CreateAlloca(containedType, sizeStack);
-            symbolTable->addVar(m_name, alloca, containedType);
+            symbolTable->addVarArray(m_name, alloca, containedType, std::vector<llvm::Value*>(values.begin(),values.begin()+lastIndexVLA+1), indexesVLA);
 
             llvm::Function* stackRestoreFunc = llvm::Intrinsic::getDeclaration(module.get(), llvm::Intrinsic::stackrestore);
 
             std::shared_ptr<BlockAST> block = manager.getCurrentBlock();
             block->addStatementBeforeReturn(std::make_shared<LLVMCallFuncAST>(stackRestoreFunc, stackPtr));
 
-            return alloca;
+            llvmValue = alloca;
+            return;
         }
     }
     llvm::AllocaInst* alloca = builder->CreateAlloca(llvmType, nullptr, m_name.c_str());
@@ -132,33 +173,26 @@ llvm::Value* VarDeclAST::codegen()
     }
     else
     {
-        value = m_value->codegen();
+        m_value->codegen();
+        value = m_value->getLValue();
     }
 
     builder->CreateStore(value, alloca);
     symbolTable->addVar(m_name, alloca);
 
-    return alloca;
+    llvmValue = alloca;
 }
 
-llvm::Value* VarExprAST::codegen()
+void VarExprAST::codegen()
 {
     LLVMManager& manager = LLVMManager::getInstance();
     auto builder = manager.getBuilder();
     auto symbolTable = SymbolTableManager::getInstance().getSymbolTable();
     llvm::Value* var = nullptr;
-    if (m_getPtr)
-    {
-        var = symbolTable->getPtrVar(m_name);
-    }
-    else
-    {
-        var = symbolTable->getValueVar(m_name);
-    }
-    return var;
+    llvmValue = symbolTable->getPtrVar(m_name);
 }
 
-llvm::Value* LiteralExprAST::codegen()
+void LiteralExprAST::codegen()
 {
     LLVMManager& manager = LLVMManager::getInstance();
     auto context = manager.getContext();
@@ -166,30 +200,33 @@ llvm::Value* LiteralExprAST::codegen()
 
     if (m_type == TokenType::DoubleLiteral)
     {
-        return llvm::ConstantFP::get(*context, llvm::APFloat(std::stod(m_value)));
+        llvmValue = llvm::ConstantFP::get(*context, llvm::APFloat(std::stod(m_value)));
     }
     else if (m_type == TokenType::IntLiteral)
     {
-        return builder->getInt32(std::stoi(m_value));
+        llvmValue = builder->getInt32(std::stoi(m_value));
     }
     else if (m_type == TokenType::TrueLiteral)
     {
-        return builder->getInt1(true);
+        llvmValue = builder->getInt1(true);
     }
     else if (m_type == TokenType::FalseLiteral)
     {
-        return builder->getInt1(false);
+        llvmValue = builder->getInt1(false);
     }
     else if (m_type == TokenType::StringLiteral)
     {
         llvm::Constant* globalString = builder->CreateGlobalStringPtr(m_value, ".str");
         llvm::Value* zero = llvm::ConstantInt::get(llvm::Type::getInt32Ty(*context), 0);
-        return builder->CreateConstInBoundsGEP1_32(globalString->getType(), globalString, 0, "strptr");
+        llvmValue = builder->CreateConstInBoundsGEP1_32(globalString->getType(), globalString, 0, "strptr");
     }
-    return nullptr;
+    else
+    {
+        llvmValue = nullptr;
+    }
 }
 
-llvm::Value* BinaryExprAST::codegen()
+void BinaryExprAST::codegen()
 {
     LLVMManager& manager = LLVMManager::getInstance();
     auto builder = manager.getBuilder();
@@ -201,17 +238,21 @@ llvm::Value* BinaryExprAST::codegen()
     {
     case TokenType::Assign:
     {
-        llvm::Value* var = m_lhs->codegen();
-        llvm::Value* value = m_rhs->codegen();
+        m_lhs->codegen();
+        llvm::Value* var = m_lhs->getRValue();
+        m_rhs->codegen();
+        llvm::Value* value = m_rhs->getLValue();
         if (!value) {
-            return nullptr;
+            llvmValue = nullptr;
         }
         builder->CreateStore(value, var);
-        return value;
+        llvmValue = value;
+        return;
     }
     case TokenType::Or:
     {
-        llvm::Value* lhsValue = m_lhs->codegen();
+        m_lhs->codegen();
+        llvm::Value* lhsValue = m_lhs->getLValue();
         lhsValue = castType(lhsValue, builder->getInt1Ty());
 
         llvm::Function* function = builder->GetInsertBlock()->getParent();
@@ -225,7 +266,8 @@ llvm::Value* BinaryExprAST::codegen()
 
         function->insert(function->end(), rhsBB);
         builder->SetInsertPoint(rhsBB);
-        llvm::Value* rhsValue = m_rhs->codegen();
+        m_rhs->codegen();
+        llvm::Value* rhsValue = m_rhs->getLValue();
         rhsValue = castType(rhsValue, builder->getInt1Ty());
         builder->CreateBr(mergeBB);
         rhsBB = builder->GetInsertBlock();
@@ -237,11 +279,13 @@ llvm::Value* BinaryExprAST::codegen()
         phiNode->addIncoming(lhsValue, previousBB);
         phiNode->addIncoming(rhsValue, rhsBB);
 
-        return phiNode;
+        llvmValue = phiNode;
+        return;
     }
     case TokenType::And:
     {
-        llvm::Value* lhsValue = m_lhs->codegen();
+        m_lhs->codegen();
+        llvm::Value* lhsValue = m_lhs->getLValue();
         lhsValue = castType(lhsValue, builder->getInt1Ty());
 
         llvm::Function* function = builder->GetInsertBlock()->getParent();
@@ -255,7 +299,9 @@ llvm::Value* BinaryExprAST::codegen()
 
         function->insert(function->end(), rhsBB);
         builder->SetInsertPoint(rhsBB);
-        llvm::Value* rhsValue = m_rhs->codegen();
+
+        m_rhs->codegen();
+        llvm::Value* rhsValue = m_rhs->getLValue();
         rhsValue = castType(rhsValue, builder->getInt1Ty());
         builder->CreateBr(mergeBB);
         rhsBB = builder->GetInsertBlock();
@@ -267,16 +313,18 @@ llvm::Value* BinaryExprAST::codegen()
         phiNode->addIncoming(lhsValue, previousBB);
         phiNode->addIncoming(rhsValue, rhsBB);
 
-        return phiNode;
+        llvmValue = phiNode;
+        return;
     }
     }
 
-
-    llvm::Value* lhsValue = m_lhs->codegen();
-    llvm::Value* rhsValue = m_rhs->codegen();
+    m_lhs->codegen();
+    llvm::Value* lhsValue = m_lhs->getLValue();
+    m_rhs->codegen();
+    llvm::Value* rhsValue = m_rhs->getLValue();
 
     if (!lhsValue || !rhsValue) {
-        return nullptr;
+        llvmValue = nullptr;
     }
     llvm::Type* lhsType = lhsValue->getType();
     llvm::Type* rhsType = rhsValue->getType();
@@ -289,98 +337,107 @@ llvm::Value* BinaryExprAST::codegen()
     case TokenType::Plus:
         if (lhsType->isDoubleTy())
         {
-            return builder->CreateFAdd(lhsValue, rhsValue, "addtmp");
+            llvmValue = builder->CreateFAdd(lhsValue, rhsValue, "addtmp");
         }
         else if (lhsType->isIntegerTy())
         {
-            return builder->CreateAdd(lhsValue, rhsValue, "addtmp");
+            llvmValue = builder->CreateAdd(lhsValue, rhsValue, "addtmp");
         }
         else
         {
             throw std::runtime_error("ERROR::AST::Invalid type for binary operation " + lhsType->getStructName().str());
         }
+        return;
     case TokenType::Minus:
         if (lhsType->isDoubleTy())
         {
-            return builder->CreateFSub(lhsValue, rhsValue, "subtmp");
+            llvmValue = builder->CreateFSub(lhsValue, rhsValue, "subtmp");
         }
         else if (lhsType->isIntegerTy())
         {
-            return builder->CreateSub(lhsValue, rhsValue, "subtmp");
+            llvmValue = builder->CreateSub(lhsValue, rhsValue, "subtmp");
         }
         else
         {
             throw std::runtime_error("ERROR::AST::Invalid type for binary operation " + lhsType->getStructName().str());
         }
+        return;
     case TokenType::Mul:
         if (lhsType->isDoubleTy())
         {
-            return builder->CreateFMul(lhsValue, rhsValue, "multmp");
+            llvmValue = builder->CreateFMul(lhsValue, rhsValue, "multmp");
         }
         else if (lhsType->isIntegerTy())
         {
-            return builder->CreateMul(lhsValue, rhsValue, "multmp");
+            llvmValue = builder->CreateMul(lhsValue, rhsValue, "multmp");
         }
         else
         {
             throw std::runtime_error("ERROR::AST::Invalid type for binary operation " + lhsType->getStructName().str());
         }
+        return;
     case TokenType::Div:
         if (lhsType->isDoubleTy())
         {
-            return builder->CreateFDiv(lhsValue, rhsValue, "divtmp");
+            llvmValue = builder->CreateFDiv(lhsValue, rhsValue, "divtmp");
         }
         else if (lhsType->isIntegerTy())
         {
-            return builder->CreateSDiv(lhsValue, rhsValue, "divtmp");
+            llvmValue = builder->CreateSDiv(lhsValue, rhsValue, "divtmp");
         }
         else
         {
             throw std::runtime_error("ERROR::AST::Invalid type for binary operation " + lhsType->getStructName().str());
         }
+        return;
     case TokenType::Less:
         if (lhsType->isDoubleTy())
         {
-            return builder->CreateFCmpULT(lhsValue, rhsValue, "lesstmp");
+            llvmValue = builder->CreateFCmpULT(lhsValue, rhsValue, "lesstmp");
         }
         else if (lhsType->isIntegerTy())
         {
-            return builder->CreateICmpSLT(lhsValue, rhsValue, "lesstmp");
+            llvmValue = builder->CreateICmpSLT(lhsValue, rhsValue, "lesstmp");
         }
         else
         {
             throw std::runtime_error("ERROR::AST::Invalid type for binary operation " + lhsType->getStructName().str());
         }
+        return;
     case TokenType::Greater:
         if (lhsType->isDoubleTy())
         {
-            return builder->CreateFCmpUGT(lhsValue, rhsValue, "greatertmp");
+            llvmValue = builder->CreateFCmpUGT(lhsValue, rhsValue, "greatertmp");
         }
         else if (lhsType->isIntegerTy())
         {
-            return builder->CreateICmpSGT(lhsValue, rhsValue, "greatertmp");
+            llvmValue = builder->CreateICmpSGT(lhsValue, rhsValue, "greatertmp");
         }
         else
         {
             throw std::runtime_error("ERROR::AST::Invalid type for binary operation " + lhsType->getStructName().str());
         }
+        return;
     case TokenType::Equal:
         if (lhsType->isDoubleTy())
         {
-            return builder->CreateFCmpUEQ(lhsValue, rhsValue, "equaltmp");
+            llvmValue = builder->CreateFCmpUEQ(lhsValue, rhsValue, "equaltmp");
         }
         else if (lhsType->isIntegerTy())
         {
-            return builder->CreateICmpEQ(lhsValue, rhsValue, "equaltmp");
+            llvmValue = builder->CreateICmpEQ(lhsValue, rhsValue, "equaltmp");
         }
         else
         {
             throw std::runtime_error("ERROR::AST::Invalid type for binary operation " + lhsType->getStructName().str());
         }
+        return;
     case TokenType::BitAnd:
-        return builder->CreateAnd(lhsValue, rhsValue, "bitandtmp");
+        llvmValue = builder->CreateAnd(lhsValue, rhsValue, "bitandtmp");
+        return;
     case TokenType::BitOr:
-        return builder->CreateOr(lhsValue, rhsValue, "bitortmp");
+        llvmValue = builder->CreateOr(lhsValue, rhsValue, "bitortmp");
+        return;
     case TokenType::Exponentiation:
     {
         if (lhsType->isIntegerTy())
@@ -397,18 +454,18 @@ llvm::Value* BinaryExprAST::codegen()
 
         if (lhsType->isIntegerTy())
         {
-            return castType(result, lhsType);
+            llvmValue = castType(result, lhsType);
         }
 
-        return result;
+        llvmValue = result;
+        return;
     }
     default:
         throw std::runtime_error("ERROR::AST::Invalid binary operator: " + g_nameTypes[static_cast<int>(m_op)]);
     }
-    return nullptr;
 }
 
-llvm::Value* UnaryExprAST::codegen()
+void UnaryExprAST::codegen()
 {
     LLVMManager& manager = LLVMManager::getInstance();
     auto builder = manager.getBuilder();
@@ -438,11 +495,11 @@ llvm::Value* UnaryExprAST::codegen()
 
         if (m_prefix)
         {
-            return incrementResult;
+            llvmValue = incrementResult;
         }
         else
         {
-            return varValue;
+            llvmValue = varValue;
         }
         break;
     }
@@ -462,44 +519,96 @@ llvm::Value* UnaryExprAST::codegen()
 
         if (m_prefix)
         {
-            return decrementResult;
+            llvmValue = decrementResult;
         }
         else
         {
-            return varValue;
+            llvmValue = varValue;
         }
         break;
     }
     }
-    return nullptr;
 }
 
-llvm::Value* IndexExprAST::codegen()
+void IndexExprAST::codegen()
 {
     LLVMManager& manager = LLVMManager::getInstance();
     auto builder = manager.getBuilder();
     auto context = manager.getContext();
     auto symbolTable = SymbolTableManager::getInstance().getSymbolTable();
-    llvm::Value* varLocation = symbolTable->getPtrVar(m_name);
-    llvm::Value* varValue = symbolTable->getValueVar(m_name);
-    llvm::Type* varType = symbolTable->getContainedTypeVar(m_name);
-    switch (m_op)
+    std::vector<llvm::Value*> valIndexes;
+    for (const auto& index : m_indexes)
     {
-    case TokenType::OpenBrace:
+        index->codegen();
+        valIndexes.push_back(builder->CreateZExt(index->getLValue(), builder->getInt64Ty()));
+    }
+    llvm::Value* varPtr = symbolTable->getValueVar(m_name);
+    llvm::Type* varType = symbolTable->getTypeVar(m_name);
+    std::vector<llvm::Value*> sizesVLA = symbolTable->getSizeArrayVLA(m_name);
+    std::vector<int> indexesVLA = symbolTable->getIndexesVLA(m_name);
+    
+    if (!sizesVLA.empty())
     {
-        llvm::Value* indexValue = m_value->codegen();
-        llvm::Value* elementPtr = builder->CreateGEP(varType, varValue, indexValue, "ptrtoelementarray", true);
-        if (m_getPtr)
+        for (size_t i = 0; i <= sizesVLA.size() - 1; i++)
         {
-            return elementPtr;
+            llvm::Value* index = nullptr;
+            if (i == sizesVLA.size() - 1)
+            {
+                index = valIndexes[i];
+            }
+            else
+            {
+                index = sizesVLA[sizesVLA.size()-1];
+                if (i == sizesVLA.size() - 2)
+                {
+                    index = builder->CreateNSWMul(index, valIndexes[i], "multmp");
+                }
+                else
+                {
+                    for (size_t j = i + 1; j < sizesVLA.size(); j++)
+                    {
+                        if (llvm::dyn_cast<llvm::ConstantInt>(sizesVLA[j]))
+                        {
+                            llvm::Value* constInt = sizesVLA[j];
+                            j++;
+                            while (llvm::dyn_cast<llvm::ConstantInt>(sizesVLA[j]))
+                            {
+                                constInt = builder->CreateNUWMul(constInt, sizesVLA[j], "multmp");
+                                j++;
+                            }
+                            index = builder->CreateNUWMul(index, constInt, "multmp");
+                        }
+                        else
+                        {
+                            index = builder->CreateNUWMul(index, sizesVLA[j], "multmp");
+                        }
+                    }
+                    index = builder->CreateNSWMul(index, valIndexes[i], "multmp");
+                }
+            }
+            varPtr = builder->CreateGEP(varType, varPtr, index, "ptrtoelementarray", true);
         }
-        return builder->CreateLoad(varType,elementPtr,"elementarray");
     }
+    llvm::Value* zero = llvm::ConstantInt::get(builder->getInt64Ty(), 0);
+    int lastIndexVLA = 0;
+    if (!indexesVLA.empty())
+    {
+        lastIndexVLA = indexesVLA[indexesVLA.size() - 1] + 1;
     }
-    return nullptr;
+    for (size_t i = lastIndexVLA; i < valIndexes.size();i++)
+    {
+        if (llvm::dyn_cast<llvm::ArrayType>(varType))
+        {
+            varPtr = builder->CreateGEP(varType, varPtr, { zero, valIndexes[i] }, "ptrtoelementarray", true);
+            llvm::GetElementPtrInst* val = llvm::dyn_cast<llvm::GetElementPtrInst>(varPtr);
+            varType = val->getResultElementType();
+        }
+    }
+
+    llvmValue = varPtr;
 }
 
-llvm::Value* ConsoleOutputExprAST::codegen()
+void ConsoleOutputExprAST::codegen()
 {
     LLVMManager& manager = LLVMManager::getInstance();
     auto context = manager.getContext();
@@ -521,7 +630,8 @@ llvm::Value* ConsoleOutputExprAST::codegen()
     if (m_expr)
 
     {
-        value = m_expr->codegen();
+        m_expr->codegen();
+        value = m_expr->getLValue();
     }
 
     std::string formatStr = "%s\n";
@@ -545,7 +655,7 @@ llvm::Value* ConsoleOutputExprAST::codegen()
             llvm::Value* result = builder->CreateSelect(value, true_str, false_str);
             printfArgs.push_back(bool_str);
             printfArgs.push_back(result);
-            return builder->CreateCall(printFunc, printfArgs);
+            llvmValue = builder->CreateCall(printFunc, printfArgs);
         }
     }
     else
@@ -553,28 +663,28 @@ llvm::Value* ConsoleOutputExprAST::codegen()
         formatStr = "%s\n";
         printfArgs.push_back(builder->CreateGlobalStringPtr(formatStr));
         printfArgs.push_back(builder->CreateGlobalStringPtr(""));
-        return builder->CreateCall(printFunc, printfArgs);
+        llvmValue = builder->CreateCall(printFunc, printfArgs);
+        return;
     }
 
     printfArgs.push_back(builder->CreateGlobalStringPtr(formatStr));
     printfArgs.push_back(value);
 
 
-    return builder->CreateCall(printFunc, llvm::ArrayRef<llvm::Value* >(printfArgs));
+    llvmValue = builder->CreateCall(printFunc, llvm::ArrayRef<llvm::Value* >(printfArgs));
 }
 
-llvm::Value* BlockAST::codegen() 
+void BlockAST::codegen() 
 {
     LLVMManager& manager = LLVMManager::getInstance();
     auto builder = manager.getBuilder();
 
-    llvm::Value* lastVal = nullptr;
     for (size_t i = 0; i < m_stmts.size(); i++) {
         if (std::dynamic_pointer_cast<BlockAST>(m_stmts[i]))
         {
             manager.setCurrentBlock(std::dynamic_pointer_cast<BlockAST>(m_stmts[i]));
         }
-        lastVal = m_stmts[i]->codegen();
+        m_stmts[i]->codegen();
 
         //No need to generate code after return,break,continue
         if (std::dynamic_pointer_cast<ReturnAST>(m_stmts[i]) || std::dynamic_pointer_cast<BreakAST>(m_stmts[i]) || std::dynamic_pointer_cast<ContinueAST>(m_stmts[i]))
@@ -587,8 +697,6 @@ llvm::Value* BlockAST::codegen()
     {
         lastBB->removeFromParent();
     }
-
-    return lastVal;
 }
 
 std::vector<std::shared_ptr<ReturnAST>> BlockAST::getReturns()
@@ -751,7 +859,7 @@ std::vector<std::shared_ptr<ContinueAST>> BlockAST::getContinuations()
     return continuations;
 }
 
-llvm::Value* ProtFunctionAST::codegen() 
+void ProtFunctionAST::codegen() 
 {
     LLVMManager& manager = LLVMManager::getInstance();
     auto module = manager.getModule();
@@ -769,10 +877,10 @@ llvm::Value* ProtFunctionAST::codegen()
     unsigned int i = 0;
     for (auto& Arg : func->args())
         Arg.setName(m_args[i].second);
-    return func;
+    llvmValue = func;
 }
 
-llvm::Value* FunctionAST::codegen()
+void FunctionAST::codegen()
 {
     LLVMManager& manager = LLVMManager::getInstance();
     auto context = manager.getContext();
@@ -817,7 +925,7 @@ llvm::Value* FunctionAST::codegen()
     for (auto& arg : func->args())
     {
         arg.setName("arg"+std::to_string(i));
-        std::shared_ptr<VarDeclAST> var = std::make_shared<VarDeclAST>(m_args[i].second, std::make_shared<LLVMValueAST>(&arg), m_args[i].first);
+        std::shared_ptr<VarDeclAST> var = std::make_shared<VarDeclAST>(m_args[i].second, m_args[i].first, std::make_shared<LLVMValueAST>(&arg));
         var->doSemantic();
         var->codegen();
         ++i;
@@ -850,10 +958,10 @@ llvm::Value* FunctionAST::codegen()
             builder->CreateRet(llvm::Constant::getNullValue(m_returnType));
         }
     }
-    return func;
+    llvmValue = func;
 }
 
-llvm::Value* CallExprAST::codegen()
+void CallExprAST::codegen()
 {
     LLVMManager& manager = LLVMManager::getInstance();
     auto module = manager.getModule();
@@ -868,13 +976,14 @@ llvm::Value* CallExprAST::codegen()
     
     std::vector<llvm::Value*> args;
     for (const auto& arg : m_args) {
-        args.push_back(arg->codegen());
+        arg->codegen();
+        args.push_back(arg->getLValue());
     }
 
-    return builder->CreateCall(func, args, "calltmp");
+    llvmValue = builder->CreateCall(func, args, "calltmp");
 }
 
-llvm::Value* ReturnAST::codegen()
+void ReturnAST::codegen()
 {
     LLVMManager& manager = LLVMManager::getInstance();
     auto builder = manager.getBuilder();
@@ -884,7 +993,8 @@ llvm::Value* ReturnAST::codegen()
     {
         if (m_returnExpr)
         {
-            llvm::Value* returnValue = m_returnExpr->codegen();
+            m_returnExpr->codegen();
+            llvm::Value* returnValue = m_returnExpr->getLValue();
             builder->CreateStore(returnValue, m_returnVar);
             builder->CreateBr(m_returnBB);
         }
@@ -897,7 +1007,8 @@ llvm::Value* ReturnAST::codegen()
     {
         if (m_returnExpr)
         {
-            llvm::Value* retVal = m_returnExpr->codegen();
+            m_returnExpr->codegen();
+            llvm::Value* retVal = m_returnExpr->getLValue();
             builder->CreateRet(retVal);
         }
         else
@@ -905,17 +1016,16 @@ llvm::Value* ReturnAST::codegen()
             builder->CreateRetVoid();
         }
     }
-    return nullptr;
-
 }
 
-llvm::Value* IfAST::codegen()
+void IfAST::codegen()
 {
     LLVMManager& manager = LLVMManager::getInstance();
     auto builder = manager.getBuilder();
     auto context = manager.getContext();
 
-    llvm::Value* condValue = m_ifExpr->codegen();
+    m_ifExpr->codegen();
+    llvm::Value* condValue = m_ifExpr->getLValue();
     if (condValue->getType() != builder->getInt1Ty())
     {
         condValue = castType(condValue, builder->getInt1Ty());
@@ -948,7 +1058,7 @@ llvm::Value* IfAST::codegen()
     //generate ifBlock
     builder->SetInsertPoint(ifBB);
     m_ifBlock->addStatement(std::make_shared<GotoAST>(mergeBB));
-    llvm::Value* ifValue = m_ifBlock->codegen();
+    m_ifBlock->codegen();
     ifBB = builder->GetInsertBlock();
 
     //generate elseIfBlocks
@@ -981,8 +1091,8 @@ llvm::Value* IfAST::codegen()
             llvm::BasicBlock* elseifBB = llvm::BasicBlock::Create(*context, "elseifblock");
             function->insert(function->end(), elseifBB);
 
-
-            llvm::Value* elseifCondValue = m_elseIfs[i].first->codegen();
+            m_elseIfs[i].first->codegen();
+            llvm::Value* elseifCondValue = m_elseIfs[i].first->getLValue();
             if (elseifCondValue->getType() != builder->getInt1Ty())
             {
                 elseifCondValue = castType(elseifCondValue, builder->getInt1Ty());
@@ -992,7 +1102,7 @@ llvm::Value* IfAST::codegen()
 
             builder->SetInsertPoint(elseifBB);
             m_elseIfs[i].second->addStatement(std::make_shared<GotoAST>(mergeBB));
-            llvm::Value* elseifValue = m_elseIfs[i].second->codegen();
+            m_elseIfs[i].second->codegen();
             elseifBB = builder->GetInsertBlock();
 
             elseifBBHelp = nextElseifBBHelp;
@@ -1001,47 +1111,47 @@ llvm::Value* IfAST::codegen()
     
 
     //generate elseBlock
-    llvm::Value* elseValue = nullptr;
     if (m_elseBlock)
     {
         function->insert(function->end(), elseBB);
         builder->SetInsertPoint(elseBB);
 
         m_elseBlock->addStatement(std::make_shared<GotoAST>(mergeBB));
-        elseValue = m_elseBlock->codegen();
+        m_elseBlock->codegen();
     }
     function->insert(function->end(), mergeBB);
     builder->SetInsertPoint(mergeBB);
-    return ifValue;
+    llvmValue = nullptr;
 }
 
-llvm::Value* CastAST::codegen()
+void CastAST::codegen()
 {
     LLVMManager& manager = LLVMManager::getInstance();
     auto builder = manager.getBuilder();
 
-    llvm::Value* value = m_value->codegen();
+    m_value->codegen();
+    llvm::Value* value = m_value->getLValue();
     llvm::Type* type = getType(m_type);
     
     if (type == value->getType())
     {
-        return value;
+        llvmValue = value;
     }
     else if (type->isDoubleTy() && value->getType()->isIntegerTy())
     {
-        return builder->CreateSIToFP(value, type, "sitofptmp");
+        llvmValue = builder->CreateSIToFP(value, type, "sitofptmp");
     }
     else if (type->isIntegerTy() && value->getType()->isDoubleTy())
     {
-        return builder->CreateFPToSI(value, type, "sitofptmp");
+        llvmValue = builder->CreateFPToSI(value, type, "sitofptmp");
     }
     else if (type->isIntegerTy(1) && value->getType()->isIntegerTy())
     {
-        return builder->CreateICmpNE(value, builder->getInt32(0), "i32toi1tmp");
+        llvmValue = builder->CreateICmpNE(value, builder->getInt32(0), "i32toi1tmp");
     }
     else if (type->isIntegerTy() && value->getType()->isIntegerTy(1))
     {
-        return builder->CreateIntCast(value,type,false,"i1toi32tmp");
+        llvmValue = builder->CreateIntCast(value,type,false,"i1toi32tmp");
     }
     else
     {
@@ -1049,7 +1159,7 @@ llvm::Value* CastAST::codegen()
     }
 }
 
-llvm::Value* GotoAST::codegen()
+void GotoAST::codegen()
 {
     LLVMManager& manager = LLVMManager::getInstance();
     auto builder = manager.getBuilder();
@@ -1061,10 +1171,10 @@ llvm::Value* GotoAST::codegen()
     {
         builder->CreateBr(m_gotoBB);
     }
-    return m_value;
+    llvmValue = m_value;
 }
 
-llvm::Value* WhileAST::codegen()
+void WhileAST::codegen()
 {
     LLVMManager& manager = LLVMManager::getInstance();
     auto builder = manager.getBuilder();
@@ -1080,7 +1190,8 @@ llvm::Value* WhileAST::codegen()
     function->insert(function->end(), exprBB);
     builder->CreateBr(exprBB);
     builder->SetInsertPoint(exprBB);
-    llvm::Value* value = m_whileExpr->codegen();
+    m_whileExpr->codegen();
+    llvm::Value* value = m_whileExpr->getLValue();
     builder->CreateCondBr(value, whileBB, mergeBB);
 
     //generate whileblock
@@ -1100,22 +1211,18 @@ llvm::Value* WhileAST::codegen()
     //continue block
     function->insert(function->end(), mergeBB);
     builder->SetInsertPoint(mergeBB);
-
-    return nullptr;
 }
 
-llvm::Value* BreakAST::codegen()
+void BreakAST::codegen()
 {
     LLVMManager& manager = LLVMManager::getInstance();
     auto builder = manager.getBuilder();
     builder->CreateBr(m_nextBlock);
-    return nullptr;
 }
 
-llvm::Value* ContinueAST::codegen()
+void ContinueAST::codegen()
 {
     LLVMManager& manager = LLVMManager::getInstance();
     auto builder = manager.getBuilder();
     builder->CreateBr(m_nextBlock);
-    return nullptr;
 }

@@ -1,67 +1,105 @@
 #include "SymbolTable.h"
 
-void SymbolTable::addVar(const std::string& name, llvm::Value* value, llvm::Type* containedType)
+void SymbolTable::addVar(const std::string& name, llvm::Value* value)
 {
-	NodeVarTable node;
+	NodeVar node;
 	node.name = name;
 	node.varValue = value;
-	node.type = value->getType();
-	node.containedType = containedType;
-	std::variant<NodeVarTable, NodeFuncTable>* variant = findNode(name);
+	node.type = llvm::dyn_cast<llvm::AllocaInst>(value)->getAllocatedType();
+
+	std::shared_ptr<NodeVar> findedNode = findNode(name);
 	
-	//If the variable exists, add it to the table
-	if (!variant)
+	//If the variable does not exist, we change the data in the table
+	if (!findedNode)
 	{
-		m_symbolTable.push_back(node);
+		m_symbolTable.push_back(std::make_shared<NodeVar>(node));
 		return;
 	}
 
-	//If the variable does not exist, we change the data in the table
-	if (std::holds_alternative<NodeVarTable>(*variant)) {
-		NodeVarTable& findNode = std::get<NodeVarTable>(*variant);
-		findNode.varValue = node.varValue;
-		findNode.type = node.type;
-		findNode.containedType = node.containedType;
-	}
+	findedNode->varValue = node.varValue;
+	findedNode->type = node.type;
 }
-void SymbolTable::addVarType(const std::string& name, llvm::Type* type, llvm::Type* containedType)
+void SymbolTable::addVarArray(const std::string& name, llvm::Value* value, llvm::Type* containedType, std::vector<llvm::Value*> sizesVLA, std::vector<int> indexesVLA)
 {
-	NodeVarTable node;
+	NodeVarArray node;
+	node.name = name;
+	node.varValue = value;
+	node.type = llvm::dyn_cast<llvm::AllocaInst>(value)->getAllocatedType();
+	node.containedType = containedType;
+	node.sizesVLA = sizesVLA;
+	node.indexesVLA = indexesVLA;
+	std::shared_ptr<NodeVar> findedNode = findNode(name);
+
+	//If the variable does not exist, we change the data in the table
+	if (!findedNode)
+	{
+		m_symbolTable.push_back(std::make_shared<NodeVarArray>(node));
+		return;
+	}
+	std::shared_ptr<NodeVarArray> nodeArray = std::dynamic_pointer_cast<NodeVarArray>(findedNode);
+
+	nodeArray->varValue = node.varValue;
+	nodeArray->type = node.type;
+	nodeArray->containedType = node.containedType;
+	nodeArray->sizesVLA = node.sizesVLA;
+	nodeArray->indexesVLA = node.indexesVLA;
+}
+void SymbolTable::addVarType(const std::string& name, llvm::Type* type)
+{
+	NodeVar node;
+	node.name = name;
+	node.type = type;
+	std::shared_ptr<NodeVar> findedNode = findNode(name);
+
+	if (!findedNode)
+	{
+		m_symbolTable.push_back(std::make_shared<NodeVar>(node));
+		return;
+	}
+
+	findedNode->type = node.type;
+}
+void SymbolTable::addVarArrayType(const std::string& name, llvm::Type* type, llvm::Type* containedType)
+{
+	NodeVarArray node;
 	node.name = name;
 	node.type = type;
 	node.containedType = containedType;
-	std::variant<NodeVarTable, NodeFuncTable>* variant = findNode(name);
 
-	if (!variant)
+	std::shared_ptr<NodeVar> findedNode = findNode(name);
+
+	//If the variable does not exist, we change the data in the table
+	if (!findedNode)
 	{
-		m_symbolTable.push_back(node);
+		m_symbolTable.push_back(std::make_shared<NodeVarArray>(node));
 		return;
 	}
 
-	if (std::holds_alternative<NodeVarTable>(*variant)) {
-		NodeVarTable& findNode = std::get<NodeVarTable>(*variant);
-		findNode.type = node.type;
-	}
+	std::shared_ptr<NodeVarArray> nodeArray = std::dynamic_pointer_cast<NodeVarArray>(findedNode);
+	nodeArray->type = node.type;
+	nodeArray->containedType = node.containedType;
 }
 llvm::Value* SymbolTable::getValueVar(const std::string& name)
 {
 	LLVMManager& manager = LLVMManager::getInstance();
-	std::shared_ptr<llvm::IRBuilder<>> builder = manager.getBuilder();
+	auto builder = manager.getBuilder();
 
-	std::variant<NodeVarTable, NodeFuncTable>* variant = findNode(name);
-	NodeVarTable& node = std::get<NodeVarTable>(*variant);
+	std::shared_ptr<NodeVar> findedNode = findNode(name);
+	if (!findedNode)
+	{
+		throw std::runtime_error("ERROR::Var is not defined!");
+	}
 
 	llvm::Type* varType;
 	llvm::Value* var;
-	if (node.containedType)
+	if (findedNode->type->isPointerTy() || std::dynamic_pointer_cast<NodeVarArray>(findedNode))
 	{
-		varType = node.type;
-		var = node.varValue;
+		var = findedNode->varValue;
 	}
 	else
 	{
-		varType = llvm::dyn_cast<llvm::AllocaInst>(node.varValue)->getAllocatedType();
-		var = builder->CreateLoad(varType, node.varValue);
+		varType = llvm::dyn_cast<llvm::AllocaInst>(findedNode->varValue)->getAllocatedType();
+		var = builder->CreateLoad(varType, findedNode->varValue);
 	}
 	return var;
 }
@@ -69,48 +107,71 @@ llvm::Value* SymbolTable::getValueVar(const std::string& name)
 llvm::Value* SymbolTable::getPtrVar(const std::string& name)
 {
 	LLVMManager& manager = LLVMManager::getInstance();
-	std::shared_ptr<llvm::IRBuilder<>> builder = manager.getBuilder();
+	auto builder = manager.getBuilder();
 
-	std::variant<NodeVarTable, NodeFuncTable>* variant = findNode(name);
-	if (!variant)
+	std::shared_ptr<NodeVar> findedNode = findNode(name);
+	if (!findedNode)
 	{
 		throw std::runtime_error("ERROR::Var is not defined!");
 	}
 
-	NodeVarTable& node = std::get<NodeVarTable>(*variant);
-	if (!node.type->isPointerTy())
-	{
-		throw std::runtime_error("ERROR::The " + name + " is not variable!");
-	}
-	return node.varValue;
+	return findedNode->varValue;
 }
 
 llvm::Type* SymbolTable::getTypeVar(const std::string& name)
 {
-	std::variant<NodeVarTable, NodeFuncTable>* variant = findNode(name);
-	if (!variant)
+	std::shared_ptr<NodeVar> findedNode = findNode(name);
+	if (!findedNode)
 	{
 		throw std::runtime_error("ERROR::Var is not defined!");
 	}
-	NodeVarTable& node = std::get<NodeVarTable>(*variant);
-	return node.type;
+	return findedNode->type;
 }
 
 llvm::Type* SymbolTable::getContainedTypeVar(const std::string& name)
 {
-	std::variant<NodeVarTable, NodeFuncTable>* variant = findNode(name);
-	if (!variant)
+	std::shared_ptr<NodeVar> findedNode = findNode(name);
+	if (!findedNode)
 	{
 		throw std::runtime_error("ERROR::Var is not defined!");
 	}
-	NodeVarTable& node = std::get<NodeVarTable>(*variant);
-	if (!node.containedType)
+	std::shared_ptr<NodeVarArray> nodeArray = std::dynamic_pointer_cast<NodeVarArray>(findedNode);
+	if (!nodeArray)
 	{
 		throw std::runtime_error("ERROR::Var is not pointer!");
 	}
-	return node.containedType;
+	return nodeArray->containedType;
 }
+std::vector<llvm::Value*> SymbolTable::getSizeArrayVLA(const std::string& name)
+{
+	std::shared_ptr<NodeVar> findedNode = findNode(name);
+	if (!findedNode)
+	{
+		throw std::runtime_error("ERROR::Var is not defined!");
+	}
+	std::shared_ptr<NodeVarArray> nodeArray = std::dynamic_pointer_cast<NodeVarArray>(findedNode);
+	if (!nodeArray)
+	{
+		throw std::runtime_error("ERROR::Var is not pointer!");
+	}
 
+	return nodeArray->sizesVLA;
+}
+std::vector<int> SymbolTable::getIndexesVLA(const std::string& name)
+{
+	std::shared_ptr<NodeVar> findedNode = findNode(name);
+	if (!findedNode)
+	{
+		throw std::runtime_error("ERROR::Var is not defined!");
+	}
+	std::shared_ptr<NodeVarArray> nodeArray = std::dynamic_pointer_cast<NodeVarArray>(findedNode);
+	if (!nodeArray)
+	{
+		throw std::runtime_error("ERROR::Var is not pointer!");
+	}
+
+	return nodeArray->indexesVLA;
+}
 void SymbolTable::extend(SymbolTable* table)
 {
 	for (const auto& node : table->m_symbolTable)
@@ -129,48 +190,46 @@ void SymbolTable::addFunctionReturnType(const std::string& name, llvm::Type* ret
 	NodeFuncTable node;
 	node.name = name;
 	node.returnType = returnType;
-	std::variant<NodeVarTable, NodeFuncTable>* variant = findNode(name);
+	std::shared_ptr<NodeVar> findedNode = findNode(name);
 
-	if (!variant)
+	if (!findedNode)
 	{
-		m_symbolTable.push_back(node);
+		m_symbolTable.push_back(std::make_shared<NodeFuncTable>(node));
 		return;
 	}
-
-	if (std::holds_alternative<NodeFuncTable>(*variant)) {
-		NodeFuncTable& findNode = std::get<NodeFuncTable>(*variant);
-		findNode.returnType = node.returnType;
+	std::shared_ptr<NodeFuncTable> nodeFunc = std::dynamic_pointer_cast<NodeFuncTable>(findedNode);
+	if (!nodeFunc)
+	{
+		throw std::runtime_error("ERROR::Var is not function!");
 	}
+	nodeFunc->returnType = node.returnType;
 }
 
 llvm::Type* SymbolTable::getFunctionReturnType(const std::string& name)
 {
-	std::variant<NodeVarTable, NodeFuncTable>* variant = findNode(name);
-	if (!variant)
+	std::shared_ptr<NodeVar> findedNode = findNode(name);
+	if (!findedNode)
 	{
-		throw std::runtime_error("ERROR::Function is not defined!");
+		throw std::runtime_error("ERROR::Var is not defined!");
 	}
-	if (std::holds_alternative<NodeFuncTable>(*variant)) {
-		return std::get<NodeFuncTable>(*variant).returnType;
+	std::shared_ptr<NodeFuncTable> nodeFunc = std::dynamic_pointer_cast<NodeFuncTable>(findedNode);
+	if (!nodeFunc)
+	{
+		throw std::runtime_error("ERROR::Var is not function!");
 	}
-	return nullptr;
+
+	return nodeFunc->returnType;
 }
 
-std::variant<SymbolTable::NodeVarTable, SymbolTable::NodeFuncTable>* SymbolTable::findNode(std::string name)
+std::shared_ptr<SymbolTable::NodeVar> SymbolTable::findNode(std::string name)
 {
-	auto it = std::find_if(m_symbolTable.begin(), m_symbolTable.end(), [&name](std::variant<NodeVarTable, NodeFuncTable>& node)
+	auto it = std::find_if(m_symbolTable.begin(), m_symbolTable.end(), [&name](std::shared_ptr<NodeVar> node)
 		{
-			if (std::holds_alternative<NodeVarTable>(node)) {
-				return std::get<NodeVarTable>(node).name == name;
-			}
-			else if (std::holds_alternative<NodeFuncTable>(node)) {
-				return std::get<NodeFuncTable>(node).name == name;
-			}
-			return false;
+			return node->name == name;
 		});
 	if (it == m_symbolTable.end())
 	{
 		return nullptr;
 	}
-	return &(*it);
+	return *it;
 }
