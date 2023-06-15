@@ -1,10 +1,52 @@
+def sum(int a,int b)
+{
+	return a + b;
+}
+
+def fact(int a)
+{
+	if a == 0 or a == 1:
+	{
+		return 1;
+	}
+	else:
+	{
+		return fact(a-1) * a;
+	}
+}
+
+def double div(double a,double b);
+
 def main()
 {
-    int a = 5;
-    int[a][3][3] arr;
-    if a ==5:
+    int a = 2,b = -1;
+    int c = cast<int>(a or b)+4;
+	print(c);
+    if a < 0:
     {
-        return 10;
+    	
     }
-    return arr[2][2][2];
+    else if b < 99:
+    {
+    	while b < 5:
+		{
+			print(b);
+			b++;
+		}
+    }
+    else:
+	{
+		print(000000);
+	}
+    print(fact(6));
+	print(2|1);
+	print(10.0 ** 5.0);
+	print("Hello World!");
+    return c;
+}
+
+
+def div(double a,double b)
+{
+	return a / b;
 }

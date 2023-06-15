@@ -26,6 +26,10 @@ Compiler::Compiler()
 void Compiler::setInputFile(const std::string& pathToInputFile)
 {
 	std::filesystem::path filePath(pathToInputFile);
+	if (!std::filesystem::exists(filePath))
+	{
+		throw std::runtime_error("ERROR::COMPILER::There is no given file in the current path!");
+	}
 	m_fileName = filePath.filename().stem().string();
 	m_directoryInputFile = filePath.parent_path().string();
 	m_buildDirectory = m_directoryInputFile + "/build";
