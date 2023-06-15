@@ -148,16 +148,18 @@ public:
         LLVMManager& manager = LLVMManager::getInstance();
         auto builder = manager.getBuilder();
         llvm::AllocaInst* allocaInst = llvm::dyn_cast<llvm::AllocaInst>(llvmValue);
-        if (allocaInst)
+        if (!allocaInst)
         {
-            llvm::Type* varType = allocaInst->getAllocatedType();
-            llvm::Value* zero = llvm::ConstantInt::get(builder->getInt64Ty(), 0);
-            if (varType->isArrayTy())
-            {
-                return llvmValue;
-            }
-            return builder->CreateLoad(varType, allocaInst);
+            throw std::runtime_error("ERROR::AST::Variable has no address!");
         }
+        llvm::Type* varType = allocaInst->getAllocatedType();
+        llvm::Value* zero = llvm::ConstantInt::get(builder->getInt64Ty(), 0);
+        if (varType->isArrayTy())
+        {
+            return llvmValue;
+        }
+        return builder->CreateLoad(varType, allocaInst);
+
     }
 private:
     std::string m_name;
