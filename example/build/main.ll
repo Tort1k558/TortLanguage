@@ -1,178 +1,42 @@
 ; ModuleID = 'main'
 source_filename = "main"
 
-@0 = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
-@.str = private unnamed_addr constant [12 x i8] c"loop while:\00", align 1
-@1 = private unnamed_addr constant [4 x i8] c"%s\0A\00", align 1
-@2 = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
-@3 = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
-@4 = private unnamed_addr constant [4 x i8] c"%s\0A\00", align 1
-@5 = private unnamed_addr constant [1 x i8] zeroinitializer, align 1
-@6 = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
-@7 = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
-@8 = private unnamed_addr constant [4 x i8] c"%f\0A\00", align 1
-@.str.1 = private unnamed_addr constant [13 x i8] c"Hello World!\00", align 1
-@9 = private unnamed_addr constant [4 x i8] c"%s\0A\00", align 1
-@10 = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
-@11 = private unnamed_addr constant [4 x i8] c"%d\0A\00", align 1
-
-define i32 @sum(i32 %arg0, i32 %arg1) {
-entry:
-  %a = alloca i32, align 4
-  store i32 %arg0, ptr %a, align 4
-  %b = alloca i32, align 4
-  store i32 %arg1, ptr %b, align 4
-  %0 = load i32, ptr %a, align 4
-  %1 = load i32, ptr %b, align 4
-  %addtmp = add i32 %0, %1
-  ret i32 %addtmp
-}
-
-define i32 @fact(i32 %arg0) {
+define i32 @main() {
 entry:
   %retvar = alloca i32, align 4
   %a = alloca i32, align 4
-  store i32 %arg0, ptr %a, align 4
+  store i32 5, ptr %a, align 4
   %0 = load i32, ptr %a, align 4
-  %equaltmp = icmp eq i32 %0, 0
-  br i1 %equaltmp, label %mergeblock, label %rhsblock
-
-rhsblock:                                         ; preds = %entry
-  %1 = load i32, ptr %a, align 4
-  %equaltmp1 = icmp eq i32 %1, 1
-  br label %mergeblock
-
-mergeblock:                                       ; preds = %rhsblock, %entry
-  %orresult = phi i1 [ %equaltmp, %entry ], [ %equaltmp1, %rhsblock ]
-  br i1 %orresult, label %ifblock, label %elseblock
-
-ifblock:                                          ; preds = %mergeblock
-  store i32 1, ptr %retvar, align 4
-  br label %returnblock
-
-elseblock:                                        ; preds = %mergeblock
-  %2 = load i32, ptr %a, align 4
-  %subtmp = sub i32 %2, 1
-  %calltmp = call i32 @fact(i32 %subtmp)
-  %3 = load i32, ptr %a, align 4
-  %multmp = mul i32 %calltmp, %3
-  store i32 %multmp, ptr %retvar, align 4
-  br label %returnblock
-
-returnblock:                                      ; preds = %elseblock, %ifblock
-  %4 = load i32, ptr %retvar, align 4
-  ret i32 %4
-}
-
-define double @div(double %arg0, double %arg1) {
-entry:
-  %a = alloca double, align 8
-  store double %arg0, ptr %a, align 8
-  %b = alloca double, align 8
-  store double %arg1, ptr %b, align 8
-  %0 = load double, ptr %a, align 8
-  %1 = load double, ptr %b, align 8
-  %divtmp = fdiv double %0, %1
-  ret double %divtmp
-}
-
-define i32 @main() {
-entry:
-  %a = alloca i32, align 4
-  store i32 2, ptr %a, align 4
-  %b = alloca i32, align 4
-  store i32 -1, ptr %b, align 4
-  %c = alloca i32, align 4
-  %0 = load i32, ptr %a, align 4
-  %i32toi1tmp = icmp ne i32 %0, 0
-  br i1 %i32toi1tmp, label %mergeblock, label %rhsblock
-
-rhsblock:                                         ; preds = %entry
-  %1 = load i32, ptr %b, align 4
-  %i32toi1tmp1 = icmp ne i32 %1, 0
-  br label %mergeblock
-
-mergeblock:                                       ; preds = %rhsblock, %entry
-  %orresult = phi i1 [ %i32toi1tmp, %entry ], [ %i32toi1tmp1, %rhsblock ]
-  %i1toi32tmp = zext i1 %orresult to i32
-  %addtmp = add i32 %i1toi32tmp, 4
-  store i32 %addtmp, ptr %c, align 4
-  %2 = load i32, ptr %c, align 4
-  %3 = call i32 (ptr, ...) @printf(ptr @0, i32 %2)
+  %1 = zext i32 %0 to i64
+  %2 = call ptr @llvm.stacksave()
+  %3 = alloca [3 x [3 x i32]], i64 %1, align 4
   %4 = load i32, ptr %a, align 4
-  %lesstmp = icmp slt i32 %4, 0
-  br i1 %lesstmp, label %ifblock, label %elseifblockhelp
+  %equaltmp = icmp eq i32 %4, 5
+  br i1 %equaltmp, label %ifblock, label %mergeblock
 
-ifblock:                                          ; preds = %mergeblock
-  br label %mergeblock10
+ifblock:                                          ; preds = %entry
+  store i32 10, ptr %retvar, align 4
+  call void @llvm.stackrestore(ptr %2)
+  br label %returnblock
 
-elseifblockhelp:                                  ; preds = %mergeblock
-  %5 = load i32, ptr %b, align 4
-  %lesstmp2 = icmp slt i32 %5, 99
-  br i1 %lesstmp2, label %elseifblock, label %elseblock
+mergeblock:                                       ; preds = %entry
+  %ptrtoelementarray = getelementptr inbounds [3 x [3 x i32]], ptr %3, i64 2
+  %ptrtoelementarray1 = getelementptr inbounds [3 x [3 x i32]], ptr %ptrtoelementarray, i64 0, i64 2
+  %ptrtoelementarray2 = getelementptr inbounds [3 x i32], ptr %ptrtoelementarray1, i64 0, i64 2
+  %5 = load i32, ptr %ptrtoelementarray2, align 4
+  store i32 %5, ptr %retvar, align 4
+  call void @llvm.stackrestore(ptr %2)
+  br label %returnblock
 
-elseifblock:                                      ; preds = %elseifblockhelp
-  %6 = call i32 (ptr, ...) @printf(ptr @1, ptr @.str)
-  br label %whileexprblock
-
-whileexprblock:                                   ; preds = %mergeblock7, %ifblock4, %elseifblock
-  %7 = load i32, ptr %b, align 4
-  %lesstmp3 = icmp slt i32 %7, 5
-  br i1 %lesstmp3, label %whileblock, label %mergeblock9
-
-whileblock:                                       ; preds = %whileexprblock
-  %8 = load i32, ptr %b, align 4
-  %equaltmp = icmp eq i32 %8, 0
-  br i1 %equaltmp, label %ifblock4, label %mergeblock5
-
-ifblock4:                                         ; preds = %whileblock
-  %9 = load i32, ptr %b, align 4
-  %incrementtmp = add i32 %9, 1
-  store i32 %incrementtmp, ptr %b, align 4
-  br label %whileexprblock
-
-mergeblock5:                                      ; preds = %whileblock
-  %10 = load i32, ptr %b, align 4
-  %greatertmp = icmp sgt i32 %10, 3
-  br i1 %greatertmp, label %ifblock6, label %mergeblock7
-
-ifblock6:                                         ; preds = %mergeblock5
-  br label %mergeblock9
-
-mergeblock7:                                      ; preds = %mergeblock5
-  %11 = load i32, ptr %b, align 4
-  %12 = call i32 (ptr, ...) @printf(ptr @2, i32 %11)
-  %13 = load i32, ptr %b, align 4
-  %incrementtmp8 = add i32 %13, 1
-  store i32 %incrementtmp8, ptr %b, align 4
-  br label %whileexprblock
-
-mergeblock9:                                      ; preds = %ifblock6, %whileexprblock
-  br label %mergeblock10
-
-elseblock:                                        ; preds = %elseifblockhelp
-  %14 = call i32 (ptr, ...) @printf(ptr @3, i32 0)
-  br label %mergeblock10
-
-mergeblock10:                                     ; preds = %elseblock, %mergeblock9, %ifblock
-  %15 = call i32 (ptr, ...) @printf(ptr @4, ptr @5)
-  %calltmp = call i32 @fact(i32 6)
-  %16 = call i32 (ptr, ...) @printf(ptr @6, i32 %calltmp)
-  %17 = call i32 (ptr, ...) @printf(ptr @7, i32 3)
-  %powtmp = call double @llvm.pow.f64(double 1.000000e+01, double 5.000000e+00)
-  %18 = call i32 (ptr, ...) @printf(ptr @8, double %powtmp)
-  %19 = call i32 (ptr, ...) @printf(ptr @9, ptr @.str.1)
-  %20 = call i32 (ptr, ...) @printf(ptr @10, i32 0)
-  %autoTypeVar = alloca double, align 8
-  store double 1.000000e+00, ptr %autoTypeVar, align 8
-  %21 = call i32 (ptr, ...) @printf(ptr @11, i32 1)
-  %22 = load i32, ptr %c, align 4
-  ret i32 %22
+returnblock:                                      ; preds = %mergeblock, %ifblock
+  %6 = load i32, ptr %retvar, align 4
+  ret i32 %6
 }
 
-declare i32 @printf(ptr, ...)
+; Function Attrs: nocallback nofree nosync nounwind willreturn
+declare ptr @llvm.stacksave() #0
 
-; Function Attrs: nocallback nofree nosync nounwind speculatable willreturn memory(none)
-declare double @llvm.pow.f64(double, double) #0
+; Function Attrs: nocallback nofree nosync nounwind willreturn
+declare void @llvm.stackrestore(ptr) #0
 
-attributes #0 = { nocallback nofree nosync nounwind speculatable willreturn memory(none) }
+attributes #0 = { nocallback nofree nosync nounwind willreturn }

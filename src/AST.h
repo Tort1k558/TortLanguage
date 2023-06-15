@@ -30,7 +30,7 @@ public:
     {
         if (!llvmValue)
         {
-            throw std::runtime_error("The instruction has no value!");
+            throw std::runtime_error("The expression has no value!");
         }
         return llvmValue;
     }
@@ -40,19 +40,18 @@ public:
         auto builder = manager.getBuilder();
         if (!llvmValue)
         {
-            throw std::runtime_error("The instruction has no value!");
+            throw std::runtime_error("The expression has no value!");
         }
         llvm::AllocaInst* allocaInst = llvm::dyn_cast<llvm::AllocaInst>(llvmValue);
         if (allocaInst)
         {
             llvm::Type* varType = allocaInst->getAllocatedType();
+            if (varType->isArrayTy())
+            {
+                llvm::Value* zero = llvm::ConstantInt::get(builder->getInt64Ty(), 0);
+                return builder->CreateGEP(varType, llvmValue, {zero, zero}, "ptrtoelementarray", true);
+            }
             return builder->CreateLoad(varType, allocaInst);
-        }
-        llvm::GetElementPtrInst* GEPInst = llvm::dyn_cast<llvm::GetElementPtrInst>(llvmValue);
-        if (GEPInst)
-        {
-            llvm::Type* varType = GEPInst->getResultElementType();
-            return builder->CreateLoad(varType, GEPInst);
         }
         return llvmValue;
     }
@@ -69,6 +68,7 @@ public:
         llvmType = m_value->getType();
     }
     void codegen() override;
+
 private:
     llvm::Value* m_value;
 };
@@ -104,7 +104,7 @@ public:
         if (!m_sizeArrayAST.empty())
         {
             llvmType = builder->getPtrTy();
-            symbolTable->addVarArrayType(m_name, llvmType, getType(m_type));
+            symbolTable->addVarArrayType(m_name, llvmType, getType(m_type), m_sizeArrayAST.size());
             return;
         }
 
@@ -139,6 +139,26 @@ public:
         llvmType = SymbolTableManager::getInstance().getSymbolTable()->getTypeVar(m_name);
     }
     void codegen() override;
+    llvm::Value* getRValue() override
+    {
+        return llvmValue;
+    }
+    llvm::Value* getLValue() override
+    {
+        LLVMManager& manager = LLVMManager::getInstance();
+        auto builder = manager.getBuilder();
+        llvm::AllocaInst* allocaInst = llvm::dyn_cast<llvm::AllocaInst>(llvmValue);
+        if (allocaInst)
+        {
+            llvm::Type* varType = allocaInst->getAllocatedType();
+            llvm::Value* zero = llvm::ConstantInt::get(builder->getInt64Ty(), 0);
+            if (varType->isArrayTy())
+            {
+                return llvmValue;
+            }
+            return builder->CreateLoad(varType, allocaInst);
+        }
+    }
 private:
     std::string m_name;
 };
@@ -172,6 +192,18 @@ public:
         }
     }
     void codegen() override;
+    llvm::Value* getRValue() override
+    {
+        throw std::runtime_error("The expression cannot return RValue");
+    }
+    llvm::Value* getLValue() override
+    {
+        if (!llvmValue)
+        {
+            throw std::runtime_error("The expression has no value!");
+        }
+        return llvmValue;
+    }
 private:
     std::string m_value;
     TokenType m_type;
@@ -219,10 +251,54 @@ public:
         : m_name(name), m_indexes(indexes) {}
     void doSemantic() override
     {
+        LLVMManager& manager = LLVMManager::getInstance();
+        auto builder = manager.getBuilder();
         auto symbolTable = SymbolTableManager::getInstance().getSymbolTable();
-        llvmType = symbolTable->getContainedTypeVar(m_name);
+        if (m_indexes.size() < symbolTable->getDimensionArray(m_name))
+        {
+            llvmType = builder->getPtrTy();
+        }
+        else
+        {
+            llvmType = symbolTable->getContainedTypeVar(m_name);
+        }
     }
     void codegen() override;
+    llvm::Value* getRValue() override
+    {
+        if (!llvmValue)
+        {
+            throw std::runtime_error("The expression has no value!");
+        }
+        return llvmValue;
+    }
+    llvm::Value* getLValue() override
+    {
+        LLVMManager& manager = LLVMManager::getInstance();
+        auto builder = manager.getBuilder();
+        auto symbolTable = SymbolTableManager::getInstance().getSymbolTable();
+        if (!llvmValue)
+        {
+            throw std::runtime_error("The expression has no value!");
+        }
+
+        llvm::GetElementPtrInst* GEPInst = llvm::dyn_cast<llvm::GetElementPtrInst>(llvmValue);
+        if (GEPInst)
+        {
+            llvm::Type* varType = GEPInst->getResultElementType();
+            llvm::Value* zero = llvm::ConstantInt::get(builder->getInt64Ty(), 0);
+            if (varType->isArrayTy())
+            {
+                return builder->CreateGEP(varType, llvmValue, { zero, zero }, "ptrtoelementarray", true);
+            }
+            if (symbolTable->getDimensionArray(m_name) > m_indexes.size())
+            {
+                return llvmValue;
+            }
+            return builder->CreateLoad(varType, llvmValue);
+        }
+        return llvmValue;
+    }
 private:
     std::string m_name;
     std::vector<std::shared_ptr<ASTNode>> m_indexes;
@@ -244,7 +320,25 @@ private:
     std::shared_ptr<ASTNode> m_expr;
 };
 
-class ReturnAST : public ASTNode
+class CompletionInstruction
+{
+public:
+    void addStatementBeforeCompleting(std::shared_ptr<ASTNode> stmt)
+    {
+        m_statements.push_back(stmt);
+    }
+    void codegenCompletionsStatements()
+    {
+        for (const auto& stmt : m_statements)
+        {
+            stmt->codegen();
+        }
+    }
+private:
+    std::vector<std::shared_ptr<ASTNode>> m_statements;
+};
+
+class ReturnAST : public ASTNode, public CompletionInstruction
 {
 public:
     ReturnAST() = delete;
@@ -276,6 +370,7 @@ public:
     {
         return m_returnExpr;
     }
+
     void codegen() override;
 private:
     std::shared_ptr<ASTNode> m_returnExpr;
@@ -283,7 +378,7 @@ private:
     llvm::AllocaInst* m_returnVar;
 };
 
-class BreakAST : public ASTNode
+class BreakAST : public ASTNode, public CompletionInstruction
 {
 public:
     BreakAST():
@@ -301,7 +396,7 @@ private:
     llvm::BasicBlock* m_nextBlock;
 };
 
-class ContinueAST : public ASTNode
+class ContinueAST : public ASTNode, public CompletionInstruction
 {
 public:
     ContinueAST() :
@@ -328,26 +423,33 @@ public:
     }
 
     void addStatement(std::shared_ptr<ASTNode> stmt) {
-        m_stmts.push_back(std::move(stmt));
+        m_statements.push_back(std::move(stmt));
     }
     void addStatementBeforeReturn(std::shared_ptr<ASTNode> stmt) {
-        size_t index = 0;
-        for (size_t i = 0; i < m_stmts.size(); i++)
+        std::vector<std::shared_ptr<ReturnAST>> returns = getReturns();
+        std::vector<std::shared_ptr<BreakAST>> breaks = getBreaks();
+        std::vector<std::shared_ptr<ContinueAST>> continuations = getContinuations();
+
+        for (const auto& ret : returns)
         {
-            if (std::dynamic_pointer_cast<ReturnAST>(m_stmts[i]) || std::dynamic_pointer_cast<BreakAST>(m_stmts[i]) || std::dynamic_pointer_cast<ContinueAST>(m_stmts[i]))
+            ret->addStatementBeforeCompleting(stmt);
+        }
+        for (const auto& brk : breaks)
+        {
+            brk->addStatementBeforeCompleting(stmt);
+        }
+        for (const auto& cont : continuations)
+        {
+            cont->addStatementBeforeCompleting(stmt);
+        }
+        for (const auto& stmtBlock : m_statements)
+        {
+            if (std::dynamic_pointer_cast<ReturnAST>(stmtBlock))
             {
-                index = i;
-                break;
+                return;
             }
         }
-        if (index == 0)
-        {
-            m_stmts.push_back(stmt);
-        }
-        else
-        {
-            m_stmts.emplace(m_stmts.begin() + index, stmt);
-        }
+        m_statements.push_back(stmt);
     }
     void extendSymbolTable(std::shared_ptr<SymbolTable> symbolTable)
     {
@@ -359,7 +461,7 @@ public:
     std::vector<std::shared_ptr<ContinueAST>> getContinuations();
     void doSemantic() override
     {
-        for (const auto& stmt : m_stmts)
+        for (const auto& stmt : m_statements)
         {
             std::shared_ptr<ReturnAST> retAST = std::dynamic_pointer_cast<ReturnAST>(stmt);
             if (retAST)
@@ -371,8 +473,9 @@ public:
     }
     void codegen() override;
 private:
-    std::vector<std::shared_ptr<ASTNode>> m_stmts;
+    std::vector<std::shared_ptr<ASTNode>> m_statements;
     std::shared_ptr<SymbolTable> m_symbolTable;
+    std::vector<std::shared_ptr<ASTNode>> m_beforeRetStmts;
 };
 
 class CallExprAST : public ASTNode {

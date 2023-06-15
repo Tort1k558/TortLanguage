@@ -113,7 +113,7 @@ void VarDeclAST::codegen()
             llvmType = containedType;
             
             llvm::AllocaInst* alloca = builder->CreateAlloca(llvmType, nullptr, m_name.c_str());
-            symbolTable->addVarArray(m_name, alloca, containedType);
+            symbolTable->addVarArray(m_name, alloca, containedType,values.size());
 
             llvmValue = alloca;
             return;
@@ -139,7 +139,7 @@ void VarDeclAST::codegen()
                 containedType = llvm::ArrayType::get(containedType, sizeArray);
             }
             llvm::AllocaInst* alloca = builder->CreateAlloca(containedType, sizeStack);
-            symbolTable->addVarArray(m_name, alloca, containedType, std::vector<llvm::Value*>(values.begin(),values.begin()+lastIndexVLA+1), indexesVLA);
+            symbolTable->addVarArray(m_name, alloca, containedType, values.size(), std::vector<llvm::Value*>(values.begin(), values.begin() + lastIndexVLA + 1));
 
             llvm::Function* stackRestoreFunc = llvm::Intrinsic::getDeclaration(module.get(), llvm::Intrinsic::stackrestore);
 
@@ -545,11 +545,10 @@ void IndexExprAST::codegen()
     llvm::Value* varPtr = symbolTable->getValueVar(m_name);
     llvm::Type* varType = symbolTable->getTypeVar(m_name);
     std::vector<llvm::Value*> sizesVLA = symbolTable->getSizeArrayVLA(m_name);
-    std::vector<int> indexesVLA = symbolTable->getIndexesVLA(m_name);
     
     if (!sizesVLA.empty())
     {
-        for (size_t i = 0; i <= sizesVLA.size() - 1; i++)
+        for (size_t i = 0; (i < m_indexes.size()) && (i < sizesVLA.size()); i++)
         {
             llvm::Value* index = nullptr;
             if (i == sizesVLA.size() - 1)
@@ -591,9 +590,9 @@ void IndexExprAST::codegen()
     }
     llvm::Value* zero = llvm::ConstantInt::get(builder->getInt64Ty(), 0);
     int lastIndexVLA = 0;
-    if (!indexesVLA.empty())
+    if (!sizesVLA.empty())
     {
-        lastIndexVLA = indexesVLA[indexesVLA.size() - 1] + 1;
+        lastIndexVLA = sizesVLA.size();
     }
     for (size_t i = lastIndexVLA; i < valIndexes.size();i++)
     {
@@ -604,7 +603,6 @@ void IndexExprAST::codegen()
             varType = val->getResultElementType();
         }
     }
-
     llvmValue = varPtr;
 }
 
@@ -679,15 +677,15 @@ void BlockAST::codegen()
     LLVMManager& manager = LLVMManager::getInstance();
     auto builder = manager.getBuilder();
 
-    for (size_t i = 0; i < m_stmts.size(); i++) {
-        if (std::dynamic_pointer_cast<BlockAST>(m_stmts[i]))
+    for (size_t i = 0; i < m_statements.size(); i++) {
+        if (std::dynamic_pointer_cast<BlockAST>(m_statements[i]))
         {
-            manager.setCurrentBlock(std::dynamic_pointer_cast<BlockAST>(m_stmts[i]));
+            manager.setCurrentBlock(std::dynamic_pointer_cast<BlockAST>(m_statements[i]));
         }
-        m_stmts[i]->codegen();
+        m_statements[i]->codegen();
 
         //No need to generate code after return,break,continue
-        if (std::dynamic_pointer_cast<ReturnAST>(m_stmts[i]) || std::dynamic_pointer_cast<BreakAST>(m_stmts[i]) || std::dynamic_pointer_cast<ContinueAST>(m_stmts[i]))
+        if (std::dynamic_pointer_cast<ReturnAST>(m_statements[i]) || std::dynamic_pointer_cast<BreakAST>(m_statements[i]) || std::dynamic_pointer_cast<ContinueAST>(m_statements[i]))
         {
             break;
         }
@@ -702,7 +700,7 @@ void BlockAST::codegen()
 std::vector<std::shared_ptr<ReturnAST>> BlockAST::getReturns()
 {
     std::vector<std::shared_ptr<ReturnAST>> returns;
-    for (const auto& stmt : m_stmts)
+    for (const auto& stmt : m_statements)
     {
         std::shared_ptr<ReturnAST> returnAST = std::dynamic_pointer_cast<ReturnAST>(stmt);
         if (returnAST)
@@ -761,7 +759,7 @@ std::vector<std::shared_ptr<ReturnAST>> BlockAST::getReturns()
 std::vector<std::shared_ptr<BreakAST>> BlockAST::getBreaks()
 {
     std::vector<std::shared_ptr<BreakAST>> breaks;
-    for (const auto& stmt : m_stmts)
+    for (const auto& stmt : m_statements)
     {
         std::shared_ptr<BreakAST> breakAST = std::dynamic_pointer_cast<BreakAST>(stmt);
         if (breakAST)
@@ -811,7 +809,7 @@ std::vector<std::shared_ptr<BreakAST>> BlockAST::getBreaks()
 std::vector<std::shared_ptr<ContinueAST>> BlockAST::getContinuations()
 {
     std::vector<std::shared_ptr<ContinueAST>> continuations;
-    for (const auto& stmt : m_stmts)
+    for (const auto& stmt : m_statements)
     {
         std::shared_ptr<ContinueAST> continueAST = std::dynamic_pointer_cast<ContinueAST>(stmt);
         if (continueAST)
@@ -996,10 +994,12 @@ void ReturnAST::codegen()
             m_returnExpr->codegen();
             llvm::Value* returnValue = m_returnExpr->getLValue();
             builder->CreateStore(returnValue, m_returnVar);
+            codegenCompletionsStatements();
             builder->CreateBr(m_returnBB);
         }
         else
         {
+            codegenCompletionsStatements();
             builder->CreateBr(m_returnBB);
         }
     }
@@ -1009,10 +1009,12 @@ void ReturnAST::codegen()
         {
             m_returnExpr->codegen();
             llvm::Value* retVal = m_returnExpr->getLValue();
+            codegenCompletionsStatements();
             builder->CreateRet(retVal);
         }
         else
         {
+            codegenCompletionsStatements();
             builder->CreateRetVoid();
         }
     }
@@ -1217,6 +1219,7 @@ void BreakAST::codegen()
 {
     LLVMManager& manager = LLVMManager::getInstance();
     auto builder = manager.getBuilder();
+    codegenCompletionsStatements();
     builder->CreateBr(m_nextBlock);
 }
 
@@ -1224,5 +1227,6 @@ void ContinueAST::codegen()
 {
     LLVMManager& manager = LLVMManager::getInstance();
     auto builder = manager.getBuilder();
+    codegenCompletionsStatements();
     builder->CreateBr(m_nextBlock);
 }

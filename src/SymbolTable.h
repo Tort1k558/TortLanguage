@@ -2,7 +2,7 @@
 
 #include<iostream>
 #include<string>
-#include<variant>
+#include<unordered_map>
 
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/IRBuilder.h>
@@ -23,7 +23,7 @@ class SymbolTable
 	{
 		llvm::Type* containedType;
 		std::vector<llvm::Value*> sizesVLA;
-		std::vector<int> indexesVLA;
+		int dimension;
 	};
 	struct NodeFuncTable : public NodeVar
 	{
@@ -36,20 +36,20 @@ public:
 	SymbolTable()
 		: m_symbolTable({}) {};
 	void addVar(const std::string& name, llvm::Value* value);
-	void addVarArray(const std::string& name, llvm::Value* value, llvm::Type* containedType, std::vector<llvm::Value*> sizesVLA = {}, std::vector<int> indexesVLA = {});
+	void addVarArray(const std::string& name, llvm::Value* value, llvm::Type* containedType, int dimension,std::vector<llvm::Value*> sizesVLA = {});
 	void addFunction(const std::string& name, llvm::Function* func);
 	void addFunctionReturnType(const std::string& name, llvm::Type* returnType);
 	void addVarType(const std::string& name, llvm::Type* type);
-	void addVarArrayType(const std::string& name, llvm::Type* type, llvm::Type* containedType = nullptr);
+	void addVarArrayType(const std::string& name, llvm::Type* type,llvm::Type* containedType, int dimension);
 	llvm::Value* getValueVar(const std::string& name);
 	llvm::Value* getPtrVar(const std::string& name);
 	llvm::Type* getTypeVar(const std::string& name);
 	llvm::Type* getContainedTypeVar(const std::string& name);
 	std::vector<llvm::Value*> getSizeArrayVLA(const std::string& name);
-	std::vector<int> getIndexesVLA(const std::string& name);
+	int getDimensionArray(const std::string& name);
 	llvm::Type* getFunctionReturnType(const std::string& name);
 	void extend(SymbolTable* table);
 private:
-	std::vector<std::shared_ptr<NodeVar>> m_symbolTable;
+	std::unordered_map<std::string,std::shared_ptr<NodeVar>> m_symbolTable;
 	std::shared_ptr<NodeVar> findNode(std::string name);
 };
