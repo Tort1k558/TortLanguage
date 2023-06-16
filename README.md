@@ -12,60 +12,56 @@ Upon completion of this work, the compiler generates files such as:
 - Executable file
 
 ## Example
+```
 
-    def sum(int a,int b)
-    {
-    	return a+b;
-    }
-    
-    def fact(int a)
-    {
-    	if a == 0 or a == 1:
-    	{
-    		return 1;
-    	}
-    	else:
-    	{
-    		return fact(a-1) * a;
-    	}
-    }
-    
-    def double div(double a,double b);
-    
-    def main()
-    {
-        int a = 2,b = -1;
-        int c = cast<int>(a or b)+4;
-    	print(c);
-        if a < 0:
-        {
-        	
-        }
-        else if b < 99:
-        {
-        	while b < 5:
-    		{
-    			print(b);
-    			b++;
-    		}
-        }
-        else:
-    	{
-    		print(000000);
-    	}
-        print(fact(6));
-    	print(2|1);
-    	print(10.0 ** 5.0);
-    	print("Hello World!");
-        return c;
-    }
-    
-    
-    def div(double a,double b)
-    {
-    	return a / b;
-    }
+def sum(int a,int b)
+{
+	return a + b;
+}
 
+def fact(int a)
+{
+	if a == 0 or a == 1:
+	{
+		return 1;
+	}
+	else:
+	{
+		return fact(a-1) * a;
+	}
+}
+
+def double div(double a,double b);
+
+def main()
+{
+    int a = 2,b = -1;
+    int c = cast<int>(a or b)+4;
+	print(c);
+    while b < 5:
+	{
+        if b == 2:
+        {
+            b++;
+            continue;
+        }
+		print(b);
+		b++;
+	}
+    print(fact(6));
+	print(2|1);
+	print(10.0 ** 5.0);
+	print("Hello World!");
+    return c;
+}
+
+
+def div(double a,double b)
+{
+	return a / b;
+}
+
+```
 [Generates this llvm IR code without optimization](example/build/main.ll)
 
 ## How to build a project?
@@ -80,9 +76,9 @@ Upon completion of this work, the compiler generates files such as:
     ```
 - Go to the LLVM build folder
 - run this command 
-    ``
+    ```
     cmake -DCMAKE_INSTALL_PREFIX="Path to the compiler project"/llvmBuild -P cmake_install.cmake
-    ``
+    ```
 - At this stage, all dependencies are connected, you can start building the project using CMake
     ```
     mkdir build

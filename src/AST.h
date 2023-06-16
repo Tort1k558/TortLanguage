@@ -120,6 +120,10 @@ public:
         }
         symbolTable->addVarType(m_name, llvmType);
     }
+    void setValue(std::shared_ptr<ASTNode> value)
+    {
+        m_value = value;
+    }
     void codegen() override;
 private:
     std::string m_name;
@@ -506,7 +510,7 @@ class FunctionAST : public ASTNode {
 public:
     FunctionAST() = delete;
     FunctionAST(const std::string& name, TokenType retType,
-        std::vector<std::pair<TokenType, std::string>> args,
+        std::vector<std::shared_ptr<VarDeclAST>> args,
         std::shared_ptr<BlockAST> body)
         : m_name(name), m_returnType(getType(retType)), m_args(args), m_body(std::move(body))
     {}
@@ -515,8 +519,11 @@ public:
         LLVMManager& manager = LLVMManager::getInstance();
         auto context = manager.getContext();
         auto symbolTable = SymbolTableManager::getInstance().getSymbolTable();
+        for (const auto& arg : m_args) {
+            arg->doSemantic();
+        }
         m_body->doSemantic();
-        
+
         m_returns = m_body->getReturns();
         if (!m_returnType)
         {
@@ -589,7 +596,7 @@ private:
     std::string m_name;
     llvm::Type* m_returnType;
     std::vector<std::shared_ptr<ReturnAST>> m_returns;
-    std::vector<std::pair<TokenType, std::string>> m_args;
+    std::vector<std::shared_ptr<VarDeclAST>> m_args;
     std::shared_ptr<BlockAST> m_body;
 
 };
@@ -598,10 +605,13 @@ class ProtFunctionAST : public ASTNode {
 public:
     ProtFunctionAST() = delete;
     ProtFunctionAST(const std::string& name, TokenType retType,
-        std::vector<std::pair<TokenType, std::string>> args)
+        std::vector<std::shared_ptr<VarDeclAST>> args)
         : m_name(name), m_returnType(getType(retType)), m_args(args) {}
     void doSemantic() override
     {
+        for (const auto& arg : m_args) {
+            arg->doSemantic();
+        }
         llvmType = m_returnType;
     }
     void codegen() override;
@@ -609,7 +619,7 @@ public:
 private:
     std::string m_name;
     llvm::Type* m_returnType;
-    std::vector<std::pair<TokenType, std::string>> m_args;
+    std::vector<std::shared_ptr<VarDeclAST>> m_args;
 };
 
 class IfAST : public ASTNode

@@ -22,21 +22,15 @@ def main()
     int a = 2,b = -1;
     int c = cast<int>(a or b)+4;
 	print(c);
-    if a < 0:
-    {
-    	
-    }
-    else if b < 99:
-    {
-    	while b < 5:
-		{
-			print(b);
-			b++;
-		}
-    }
-    else:
+    while b < 5:
 	{
-		print(000000);
+        if b == 2:
+        {
+            b++;
+            continue;
+        }
+		print(b);
+		b++;
 	}
     print(fact(6));
 	print(2|1);

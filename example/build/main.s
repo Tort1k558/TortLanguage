@@ -113,13 +113,10 @@ main:
 	orl	$4, %edx
 	movl	%edx, 40(%rsp)
 	callq	printf
-	cmpl	$0, 44(%rsp)
-	js	.LBB3_8
-	cmpl	$98, 36(%rsp)
-	jg	.LBB3_7
 	leaq	.L__unnamed_2(%rip), %rsi
 	cmpl	$4, 36(%rsp)
-	jg	.LBB3_8
+	jle	.LBB3_4
+	jmp	.LBB3_7
 	.p2align	4, 0x90
 .LBB3_6:
 	movl	36(%rsp), %edx
@@ -127,29 +124,30 @@ main:
 	callq	printf
 	incl	36(%rsp)
 	cmpl	$4, 36(%rsp)
-	jle	.LBB3_6
-	jmp	.LBB3_8
+	jg	.LBB3_7
+.LBB3_4:
+	cmpl	$2, 36(%rsp)
+	jne	.LBB3_6
+	incl	36(%rsp)
+	cmpl	$4, 36(%rsp)
+	jle	.LBB3_4
 .LBB3_7:
-	leaq	.L__unnamed_3(%rip), %rcx
-	xorl	%edx, %edx
-	callq	printf
-.LBB3_8:
 	movl	$6, %ecx
 	callq	fact
-	leaq	.L__unnamed_4(%rip), %rcx
+	leaq	.L__unnamed_3(%rip), %rcx
 	movl	%eax, %edx
 	callq	printf
-	leaq	.L__unnamed_5(%rip), %rcx
+	leaq	.L__unnamed_4(%rip), %rcx
 	movl	$3, %edx
 	callq	printf
 	vmovq	__real@4024000000000000(%rip), %xmm0
 	vmovsd	__real@4014000000000000(%rip), %xmm1
 	callq	pow
 	vmovq	%xmm0, %rdx
-	leaq	.L__unnamed_6(%rip), %rcx
+	leaq	.L__unnamed_5(%rip), %rcx
 	vmovdqa	%xmm0, %xmm1
 	callq	printf
-	leaq	.L__unnamed_7(%rip), %rcx
+	leaq	.L__unnamed_6(%rip), %rcx
 	leaq	.L.str(%rip), %rdx
 	callq	printf
 	movl	40(%rsp), %eax
@@ -172,15 +170,12 @@ main:
 	.asciz	"%d\n"
 
 .L__unnamed_5:
-	.asciz	"%d\n"
-
-.L__unnamed_6:
 	.asciz	"%f\n"
 
 .L.str:
 	.asciz	"Hello World!"
 
-.L__unnamed_7:
+.L__unnamed_6:
 	.asciz	"%s\n"
 
 	.globl	_fltused

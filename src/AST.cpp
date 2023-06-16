@@ -154,7 +154,7 @@ void VarDeclAST::codegen()
     {
         if (!m_value)
         {
-            throw std::runtime_error("ERROR::AST::The link must be initialized when declaring!");
+            throw std::runtime_error("ERROR::AST::The reference must be initialized when declaring!");
         }
         m_value->codegen();
         llvmValue = m_value->getRValue();
@@ -874,7 +874,7 @@ void ProtFunctionAST::codegen()
     auto module = manager.getModule();
     std::vector<llvm::Type*> argTypes;
     for (const auto& arg : m_args) {
-        argTypes.push_back(getType(arg.first));
+        argTypes.push_back(arg->llvmType);
     }
     if (!m_returnType)
     {
@@ -884,8 +884,11 @@ void ProtFunctionAST::codegen()
     llvm::Function* func = llvm::Function::Create(funcType, llvm::Function::ExternalLinkage, m_name, module.get());
 
     unsigned int i = 0;
-    for (auto& Arg : func->args())
-        Arg.setName(m_args[i].second);
+    for (auto& arg : func->args())
+    {
+        arg.setName("arg" + std::to_string(i));
+    }
+
     llvmValue = func;
 }
 
@@ -897,23 +900,18 @@ void FunctionAST::codegen()
     auto builder = manager.getBuilder();
     auto symbolTableFunc = SymbolTableManager::getInstance().getSymbolTable();
 
+    //parseArgs
     std::vector<llvm::Type*> argTypes;
     for (const auto& arg : m_args) {
-        argTypes.push_back(getType(arg.first));
+        arg->doSemantic();
+        argTypes.push_back(arg->llvmType);
     }
+
+    //createFunction
     llvm::Function* func =nullptr;
     func = module->getFunction(m_name);
-    llvm::BasicBlock* returnBB = nullptr;
     if (func == nullptr)
     {
-        if (m_returns.size() > 1)
-        {
-            returnBB = llvm::BasicBlock::Create(*context, "returnblock");
-            for (const auto& ret : m_returns)
-            {
-                ret->setReturnBB(returnBB);
-            }
-        }
         llvm::FunctionType* funcType = llvm::FunctionType::get(m_returnType, argTypes, false);
         func = llvm::Function::Create(funcType, llvm::Function::ExternalLinkage, m_name, module.get());
     }
@@ -921,6 +919,16 @@ void FunctionAST::codegen()
     llvm::BasicBlock* entryBB = llvm::BasicBlock::Create(*context, "entry", func);
     builder->SetInsertPoint(entryBB);
     
+    llvm::BasicBlock* returnBB = nullptr;
+    if (m_returns.size() > 1)
+    {
+        returnBB = llvm::BasicBlock::Create(*context, "returnblock");
+        for (const auto& ret : m_returns)
+        {
+            ret->setReturnBB(returnBB);
+        }
+    }
+
     llvm::AllocaInst* returnVar = nullptr;
     if (returnBB && !m_returnType->isVoidTy())
     {
@@ -930,13 +938,13 @@ void FunctionAST::codegen()
             ret->setReturnVar(returnVar);
         }
     }
+
     size_t i = 0;
     for (auto& arg : func->args())
     {
         arg.setName("arg"+std::to_string(i));
-        std::shared_ptr<VarDeclAST> var = std::make_shared<VarDeclAST>(m_args[i].second, m_args[i].first, std::make_shared<LLVMValueAST>(&arg));
-        var->doSemantic();
-        var->codegen();
+        m_args[i]->setValue(std::make_shared<LLVMValueAST>(&arg));
+        m_args[i]->codegen();
         ++i;
     }
 

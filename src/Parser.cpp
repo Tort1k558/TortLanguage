@@ -450,23 +450,45 @@ std::shared_ptr<BlockAST> Parser::parseBlock()
 	return block;
 }
 
-std::vector<std::pair<TokenType, std::string>> Parser::parseArgs()
+std::vector<std::shared_ptr<VarDeclAST>> Parser::parseArgs()
 {
 	auto symbolTableFunc = SymbolTableManager::getInstance().getSymbolTable();
-	std::vector<std::pair<TokenType, std::string>> args;
+	std::vector<std::shared_ptr<VarDeclAST>> args;
 	eat(TokenType::OpenParen);
 	while(m_tokenStream->type != TokenType::CloseParen)
 	{
-		TokenType type = checkType().type;
-		eat(type);
-		std::string name = m_tokenStream->value;
-		eat(TokenType::Identifier);
-		args.push_back({ type, name });
-		symbolTableFunc->addVarType(name, getType(type));
-		if (m_tokenStream->type != TokenType::CloseParen)
+		if (m_tokenStream->type == TokenType::Comma)
 		{
 			eat(TokenType::Comma);
+			continue;
 		}
+
+		TokenType varType = checkType().type;
+		eat(varType);
+
+		//Checking whether the array is
+		std::vector<std::shared_ptr<ASTNode>> sizeArray;
+		if (check({ TokenType::OpenBrace }).type != TokenType::Invalid)
+		{
+			while (m_tokenStream->type == TokenType::OpenBrace)
+			{
+				eat(TokenType::OpenBrace);
+				sizeArray.push_back(parseExpression());
+				eat(TokenType::CloseBrace);
+			}
+		}
+
+		bool isReference = false;
+		if (check({ TokenType::BitAnd }).type != TokenType::Invalid)
+		{
+			eat(TokenType::BitAnd);
+			isReference = true;
+		}
+
+
+		std::string varName = m_tokenStream->value;
+		eat(TokenType::Identifier);
+		args.push_back(std::make_shared<VarDeclAST>(varName, varType, nullptr, sizeArray, isReference));
 	}
 	eat(TokenType::CloseParen);
 	return args;
@@ -513,13 +535,14 @@ std::shared_ptr<ASTNode> Parser::parseFunction()
 	std::string funcName = m_tokenStream->value;
 	eat(TokenType::Identifier);
 	
-	std::vector<std::pair<TokenType, std::string>> args = std::move(parseArgs());
+	std::vector<std::shared_ptr<VarDeclAST>> args = std::move(parseArgs());
 
 	//Parse the prototype if there is no block
 	if (m_tokenStream->type == TokenType::Semicolon)
 	{
 		eat(TokenType::Semicolon);
 		auto proto = std::make_shared<ProtFunctionAST>(funcName, retType, args);
+		proto->doSemantic();
 		proto->codegen();
 		SymbolTableManager::getInstance().setSymbolTable(prevSymbolTable);
 		prevSymbolTable->addFunctionReturnType(funcName, proto->llvmType);
