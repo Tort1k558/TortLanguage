@@ -13,69 +13,91 @@ Upon completion of this work, the compiler generates files such as:
 
 ## Example
 
-```
-
-def sum(int a,int b)
-{
-	return a+b;
-}
-
-def fact(int a)
-{
-	if a == 0 or a == 1:
-	{
-		return 1;
-	}
-	else:
-	{
-		return fact(a-1) * a;
-	}
-}
-
-def double div(double a,double b);
-
-def main()
-{
-    int a = 2,b = -1;
-    int c = cast<int>(a or b)+4;
-	print(c);
-    if a < 0:
+    def sum(int a,int b)
     {
-    	
+    	return a+b;
     }
-    else if b < 99:
+    
+    def fact(int a)
     {
-    	while b < 5:
-		{
-			print(b);
-			b++;
-		}
+    	if a == 0 or a == 1:
+    	{
+    		return 1;
+    	}
+    	else:
+    	{
+    		return fact(a-1) * a;
+    	}
     }
-    else:
-	{
-		print(000000);
-	}
-    print(fact(6));
-	print(2|1);
-	print(10.0 ** 5.0);
-	print("Hello World!");
-    return c;
-}
+    
+    def double div(double a,double b);
+    
+    def main()
+    {
+        int a = 2,b = -1;
+        int c = cast<int>(a or b)+4;
+    	print(c);
+        if a < 0:
+        {
+        	
+        }
+        else if b < 99:
+        {
+        	while b < 5:
+    		{
+    			print(b);
+    			b++;
+    		}
+        }
+        else:
+    	{
+    		print(000000);
+    	}
+        print(fact(6));
+    	print(2|1);
+    	print(10.0 ** 5.0);
+    	print("Hello World!");
+        return c;
+    }
+    
+    
+    def div(double a,double b)
+    {
+    	return a / b;
+    }
 
-
-def div(double a,double b)
-{
-	return a / b;
-}
-
-```
 [Generates this llvm IR code without optimization](example/build/main.ll)
+
+## How to build a project?
+- Clone this repository
+    ```
+    git clone https://github.com/Tort1k558/TortLanguage.git
+    ```
+- Create the llvmBuild folder in the compiler root folder
+- build an LLVM with flag 
+    ```
+    -DLLVM_ENABLE_PROJECTS="llvm;lld"
+    ```
+- Go to the LLVM build folder
+- run this command 
+    ``
+    cmake -DCMAKE_INSTALL_PREFIX="Path to the compiler project"/llvmBuild -P cmake_install.cmake
+    ``
+- At this stage, all dependencies are connected, you can start building the project using CMake
+    ```
+    mkdir build
+    cd build
+    cmake ..
+    cmake --build .
+    ```
+Attention, the compiler assembly must be with the same config with which you built LLVM. For example, if you were building in debug LLVM, then the compiler should be built with the same config.
+If you failed to connect LLVM in this way, you can connect LLVM in any way convenient for you
 
 ## Support
 - Windows
 
 ## TODO
-- Add types: float, int8, int16
+- Add types: float, int8, int16, pointers
 - Add loop for 
 - Add modularity
 - Added classes
