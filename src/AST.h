@@ -93,8 +93,8 @@ private:
 class VarDeclAST : public ASTNode {
 public:
     VarDeclAST() = delete;
-    VarDeclAST(const std::string& name, TokenType type, std::shared_ptr<ASTNode> value = nullptr, std::vector<std::shared_ptr<ASTNode>> sizeArray = {})
-        : m_name(name), m_value(value), m_type(type), m_sizeArrayAST(sizeArray) {}
+    VarDeclAST(const std::string& name, TokenType type, std::shared_ptr<ASTNode> value = nullptr, std::vector<std::shared_ptr<ASTNode>> sizeArray = {},bool isReference = false)
+        : m_name(name), m_value(value), m_type(type), m_sizeArrayAST(sizeArray), m_isReference(isReference) {}
     void doSemantic() override
     {
         LLVMManager& manager = LLVMManager::getInstance();
@@ -126,6 +126,7 @@ private:
     std::shared_ptr<ASTNode> m_value;
     TokenType m_type;
     std::vector<std::shared_ptr<ASTNode>> m_sizeArrayAST;
+    bool m_isReference;
 };
 
 class VarExprAST : public ASTNode {

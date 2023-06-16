@@ -369,7 +369,12 @@ std::vector<std::shared_ptr<ASTNode>> Parser::parseVarDecl()
 			eat(TokenType::CloseBrace);
 		}
 	}
-
+	bool isReference = false;
+	if (check({ TokenType::BitAnd }).type != TokenType::Invalid)
+	{
+		eat(TokenType::BitAnd);
+		isReference = true;
+	}
 	while (m_tokenStream->type != TokenType::Semicolon)
 	{
 		if (m_tokenStream->type == TokenType::Comma)
@@ -394,7 +399,7 @@ std::vector<std::shared_ptr<ASTNode>> Parser::parseVarDecl()
 	}
 	for (const auto& assign : varsAssign)
 	{
-		vars.push_back(std::make_shared<VarDeclAST>(assign.first, varType, assign.second, sizeArray));
+		vars.push_back(std::make_shared<VarDeclAST>(assign.first, varType, assign.second, sizeArray, isReference));
 	}
 	return vars;
 }
@@ -650,6 +655,7 @@ Token Parser::checkUnary()
 	}
 	return check({TokenType::Decrement, TokenType::Increment});
 }
+
 void Parser::eat(TokenType type)
 {
 	if (m_tokenStream->type != type)

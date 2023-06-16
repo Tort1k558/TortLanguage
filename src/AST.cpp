@@ -150,6 +150,17 @@ void VarDeclAST::codegen()
             return;
         }
     }
+    if (m_isReference)
+    {
+        if (!m_value)
+        {
+            throw std::runtime_error("ERROR::AST::The link must be initialized when declaring!");
+        }
+        m_value->codegen();
+        llvmValue = m_value->getRValue();
+        symbolTable->addVar(m_name, llvmValue);
+        return;
+    }
     llvm::AllocaInst* alloca = builder->CreateAlloca(llvmType, nullptr, m_name.c_str());
     llvm::Value* value = nullptr;
     if (!m_value)
