@@ -517,11 +517,11 @@ std::shared_ptr<CallExprAST> Parser::parseCallFunc()
 
 std::shared_ptr<ASTNode> Parser::parseFunction()
 {
-	auto prevSymbolTable = SymbolTableManager::getInstance().getSymbolTable();
-
+	auto symbolTableManager = SymbolTableManager::getInstance();
+	auto prevSymbolTable = symbolTableManager.getSymbolTable();
 	auto symbolTableFunc = std::make_shared<SymbolTable>();
 	symbolTableFunc->extend(prevSymbolTable.get());
-	SymbolTableManager::getInstance().setSymbolTable(symbolTableFunc);
+	symbolTableManager.setSymbolTable(symbolTableFunc);
 
 	eat(TokenType::Def);
 
@@ -535,28 +535,25 @@ std::shared_ptr<ASTNode> Parser::parseFunction()
 	std::string funcName = m_tokenStream->value;
 	eat(TokenType::Identifier);
 	
-	std::vector<std::shared_ptr<VarDeclAST>> args = std::move(parseArgs());
+	std::vector<std::shared_ptr<VarDeclAST>> args = parseArgs();
 
 	//Parse the prototype if there is no block
 	if (m_tokenStream->type == TokenType::Semicolon)
 	{
 		eat(TokenType::Semicolon);
-		auto proto = std::make_shared<ProtFunctionAST>(funcName, retType, args);
+		auto proto = std::make_shared<ProtFunctionAST>(funcName, retType, args, prevSymbolTable);
 		proto->doSemantic();
 		proto->codegen();
-		SymbolTableManager::getInstance().setSymbolTable(prevSymbolTable);
-		prevSymbolTable->addFunctionReturnType(funcName, proto->llvmType);
+		symbolTableManager.setSymbolTable(prevSymbolTable);
 		return proto;
 	}
 
 	std::shared_ptr<BlockAST> body = parseBlock();
-	auto func = std::make_shared<FunctionAST>(funcName, retType, args, std::move(body));
-
+	auto func = std::make_shared<FunctionAST>(funcName, retType, args, std::move(body), prevSymbolTable);
 	func->doSemantic();
 	func->codegen();
 
-	SymbolTableManager::getInstance().setSymbolTable(prevSymbolTable);
-	prevSymbolTable->addFunctionReturnType(funcName, func->llvmType);
+	symbolTableManager.setSymbolTable(prevSymbolTable);
 	return func;
 
 }

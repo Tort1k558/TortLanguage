@@ -46,15 +46,15 @@ ifblock:                                          ; preds = %mergeblock
 elseblock:                                        ; preds = %mergeblock
   %2 = load i32, ptr %a, align 4
   %subtmp = sub i32 %2, 1
-  %calltmp = call i32 @fact(i32 %subtmp)
-  %3 = load i32, ptr %a, align 4
-  %multmp = mul i32 %calltmp, %3
+  %3 = call i32 @fact(i32 %subtmp)
+  %4 = load i32, ptr %a, align 4
+  %multmp = mul i32 %3, %4
   store i32 %multmp, ptr %retvar, align 4
   br label %returnblock
 
 returnblock:                                      ; preds = %elseblock, %ifblock
-  %4 = load i32, ptr %retvar, align 4
-  ret i32 %4
+  %5 = load i32, ptr %retvar, align 4
+  ret i32 %5
 }
 
 define double @div(double %arg0, double %arg1) {
@@ -119,14 +119,14 @@ mergeblock2:                                      ; preds = %whileblock
   br label %whileexprblock
 
 mergeblock4:                                      ; preds = %whileexprblock
-  %calltmp = call i32 @fact(i32 6)
-  %10 = call i32 (ptr, ...) @printf(ptr @2, i32 %calltmp)
-  %11 = call i32 (ptr, ...) @printf(ptr @3, i32 3)
+  %10 = call i32 @fact(i32 6)
+  %11 = call i32 (ptr, ...) @printf(ptr @2, i32 %10)
+  %12 = call i32 (ptr, ...) @printf(ptr @3, i32 3)
   %powtmp = call double @llvm.pow.f64(double 1.000000e+01, double 5.000000e+00)
-  %12 = call i32 (ptr, ...) @printf(ptr @4, double %powtmp)
-  %13 = call i32 (ptr, ...) @printf(ptr @5, ptr @.str)
-  %14 = load i32, ptr %c, align 4
-  ret i32 %14
+  %13 = call i32 (ptr, ...) @printf(ptr @4, double %powtmp)
+  %14 = call i32 (ptr, ...) @printf(ptr @5, ptr @.str)
+  %15 = load i32, ptr %c, align 4
+  ret i32 %15
 }
 
 declare i32 @printf(ptr, ...)

@@ -315,11 +315,15 @@ class ConsoleOutputExprAST : public ASTNode {
 public:
     ConsoleOutputExprAST() = delete;
     ConsoleOutputExprAST(std::shared_ptr<ASTNode> expr)
-        : m_expr(std::move(expr)) {}
+        : m_expr(expr) {}
     void doSemantic() override
     {
         LLVMManager& manager = LLVMManager::getInstance();
         auto builder = manager.getBuilder();
+        if (m_expr)
+        {
+            m_expr->doSemantic();
+        }
         llvmType = builder->getVoidTy();
     }
     void codegen() override;
@@ -493,7 +497,11 @@ public:
     virtual void doSemantic()
     {
         auto symbolTable = SymbolTableManager::getInstance().getSymbolTable();
-        llvmType = symbolTable->getFunctionReturnType(m_name);
+        for (const auto& arg : m_args)
+        {
+            arg->doSemantic();
+        }
+        llvmType = symbolTable->getFunctionReturnType(m_name, m_args);
     }
     std::string getNameCallFunction()
     {
@@ -511,9 +519,8 @@ public:
     FunctionAST() = delete;
     FunctionAST(const std::string& name, TokenType retType,
         std::vector<std::shared_ptr<VarDeclAST>> args,
-        std::shared_ptr<BlockAST> body)
-        : m_name(name), m_returnType(getType(retType)), m_args(args), m_body(std::move(body))
-    {}
+        std::shared_ptr<BlockAST> body, std::shared_ptr<SymbolTable> prevSymbolTable)
+        : m_name(name), m_returnType(getType(retType)), m_args(args), m_body(std::move(body)), m_prevSymbolTable(prevSymbolTable) {}
     void doSemantic() override
     {
         LLVMManager& manager = LLVMManager::getInstance();
@@ -588,6 +595,7 @@ public:
                 throw std::runtime_error("ERROR::The function " + m_name + " cannot return different types of values");
             }
         }
+        m_prevSymbolTable->addFunctionReturnType(m_name, m_returnType);
         llvmType = m_returnType;
     }
     void codegen() override;
@@ -598,6 +606,7 @@ private:
     std::vector<std::shared_ptr<ReturnAST>> m_returns;
     std::vector<std::shared_ptr<VarDeclAST>> m_args;
     std::shared_ptr<BlockAST> m_body;
+    std::shared_ptr<SymbolTable> m_prevSymbolTable;
 
 };
 
@@ -605,14 +614,15 @@ class ProtFunctionAST : public ASTNode {
 public:
     ProtFunctionAST() = delete;
     ProtFunctionAST(const std::string& name, TokenType retType,
-        std::vector<std::shared_ptr<VarDeclAST>> args)
-        : m_name(name), m_returnType(getType(retType)), m_args(args) {}
+        std::vector<std::shared_ptr<VarDeclAST>> args, std::shared_ptr<SymbolTable> prevSymbolTable)
+        : m_name(name), m_returnType(getType(retType)), m_args(args),m_prevSymbolTable(prevSymbolTable) {}
     void doSemantic() override
     {
         for (const auto& arg : m_args) {
             arg->doSemantic();
         }
         llvmType = m_returnType;
+        m_prevSymbolTable->addFunctionReturnType(m_name, llvmType);
     }
     void codegen() override;
 
@@ -620,6 +630,7 @@ private:
     std::string m_name;
     llvm::Type* m_returnType;
     std::vector<std::shared_ptr<VarDeclAST>> m_args;
+    std::shared_ptr<SymbolTable> m_prevSymbolTable;
 };
 
 class IfAST : public ASTNode

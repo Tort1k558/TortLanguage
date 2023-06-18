@@ -882,13 +882,13 @@ void ProtFunctionAST::codegen()
     }
     llvm::FunctionType* funcType = llvm::FunctionType::get(m_returnType, argTypes, false);
     llvm::Function* func = llvm::Function::Create(funcType, llvm::Function::ExternalLinkage, m_name, module.get());
-
     unsigned int i = 0;
     for (auto& arg : func->args())
     {
         arg.setName("arg" + std::to_string(i));
     }
 
+    m_prevSymbolTable->addFunction(m_name, func, m_args);
     llvmValue = func;
 }
 
@@ -909,11 +909,18 @@ void FunctionAST::codegen()
 
     //createFunction
     llvm::Function* func =nullptr;
-    func = module->getFunction(m_name);
-    if (func == nullptr)
+    std::vector<std::shared_ptr<ASTNode>> args;
+    for (const auto& arg :m_args)
+    {
+        args.push_back(arg);
+    }
+    func = m_prevSymbolTable->getFunction(m_name, args);
+    if (!func)
     {
         llvm::FunctionType* funcType = llvm::FunctionType::get(m_returnType, argTypes, false);
         func = llvm::Function::Create(funcType, llvm::Function::ExternalLinkage, m_name, module.get());
+        m_prevSymbolTable->addFunction(m_name, func, m_args);
+        symbolTableFunc->addFunction(m_name, func, m_args);
     }
 
     llvm::BasicBlock* entryBB = llvm::BasicBlock::Create(*context, "entry", func);
@@ -986,18 +993,15 @@ void CallExprAST::codegen()
 
     auto symbolTable = SymbolTableManager::getInstance().getSymbolTable();
 
-    llvm::Function* func = module->getFunction(m_name);
-    if (!func) {
-        throw std::runtime_error("Function not found: " + m_name);
-    }
-    
+    llvm::Function* func = symbolTable->getFunction(m_name,m_args);
+
     std::vector<llvm::Value*> args;
     for (const auto& arg : m_args) {
         arg->codegen();
         args.push_back(arg->getLValue());
     }
 
-    llvmValue = builder->CreateCall(func, args, "calltmp");
+    llvmValue = builder->CreateCall(func, args);
 }
 
 void ReturnAST::codegen()
