@@ -16,6 +16,7 @@ enum class TokenType {
     Div,
     DivAssign,
     Exponentiation,
+    ExponentiationAssign,
     Equal,
     Less,
     LessOrEqual,

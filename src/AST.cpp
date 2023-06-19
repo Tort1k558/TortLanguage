@@ -113,7 +113,7 @@ void VarDeclAST::codegen()
             llvmType = containedType;
             
             llvm::AllocaInst* alloca = builder->CreateAlloca(llvmType, nullptr, m_name.c_str());
-            symbolTable->addVarArray(m_name, alloca, containedType,values.size());
+            symbolTable->addNode(shared_from_this());
 
             llvmValue = alloca;
             return;
@@ -139,7 +139,8 @@ void VarDeclAST::codegen()
                 containedType = llvm::ArrayType::get(containedType, sizeArray);
             }
             llvm::AllocaInst* alloca = builder->CreateAlloca(containedType, sizeStack);
-            symbolTable->addVarArray(m_name, alloca, containedType, values.size(), std::vector<llvm::Value*>(values.begin(), values.begin() + lastIndexVLA + 1));
+            m_sizeArrayVLA = std::vector<llvm::Value*>(values.begin(), values.begin() + lastIndexVLA + 1);
+            symbolTable->addNode(shared_from_this());
 
             llvm::Function* stackRestoreFunc = llvm::Intrinsic::getDeclaration(module.get(), llvm::Intrinsic::stackrestore);
 
@@ -158,7 +159,7 @@ void VarDeclAST::codegen()
         }
         m_value->codegen();
         llvmValue = m_value->getRValue();
-        symbolTable->addVar(m_name, llvmValue);
+        symbolTable->addNode(shared_from_this());
         return;
     }
     llvm::AllocaInst* alloca = builder->CreateAlloca(llvmType, nullptr, m_name.c_str());
@@ -189,7 +190,7 @@ void VarDeclAST::codegen()
     }
 
     builder->CreateStore(value, alloca);
-    symbolTable->addVar(m_name, alloca);
+    symbolTable->addNode(shared_from_this());
 
     llvmValue = alloca;
 }
@@ -199,8 +200,8 @@ void VarExprAST::codegen()
     LLVMManager& manager = LLVMManager::getInstance();
     auto builder = manager.getBuilder();
     auto symbolTable = SymbolTableManager::getInstance().getSymbolTable();
-    llvm::Value* var = nullptr;
-    llvmValue = symbolTable->getPtrVar(m_name);
+    std::shared_ptr<ASTNode> var = symbolTable->getNode(m_name);
+    llvmValue = var->getRValue();
 }
 
 void LiteralExprAST::codegen()
@@ -293,6 +294,16 @@ void BinaryExprAST::codegen()
     case TokenType::DivAssign:
     {
         BinaryExprAST binaryExpr(TokenType::Div, m_lhs, m_rhs);
+        binaryExpr.doSemantic();
+        binaryExpr.codegen();
+        llvm::Value* value = binaryExpr.getLValue();
+        builder->CreateStore(value, m_lhs->getRValue());
+        llvmValue = value;
+        return;
+    }
+    case TokenType::ExponentiationAssign:
+    {
+        BinaryExprAST binaryExpr(TokenType::Exponentiation, m_lhs, m_rhs);
         binaryExpr.doSemantic();
         binaryExpr.codegen();
         llvm::Value* value = binaryExpr.getLValue();
@@ -550,8 +561,9 @@ void UnaryExprAST::codegen()
     auto builder = manager.getBuilder();
     auto context = manager.getContext();
     auto symbolTable = SymbolTableManager::getInstance().getSymbolTable();
-    llvm::Value* varLocation = symbolTable->getPtrVar(m_name);
-    llvm::Value* varValue = symbolTable->getValueVar(m_name);
+    std::shared_ptr<VarDeclAST> var = std::dynamic_pointer_cast<VarDeclAST>(symbolTable->getNode(m_name));
+    llvm::Value* varLocation = var->getRValue();
+    llvm::Value* varValue = var->getLValue();
     llvm::Type* varType = varValue->getType();
     switch (m_op)
     {
@@ -621,9 +633,10 @@ void IndexExprAST::codegen()
         index->codegen();
         valIndexes.push_back(builder->CreateZExt(index->getLValue(), builder->getInt64Ty()));
     }
-    llvm::Value* varPtr = symbolTable->getValueVar(m_name);
-    llvm::Type* varType = symbolTable->getTypeVar(m_name);
-    std::vector<llvm::Value*> sizesVLA = symbolTable->getSizeArrayVLA(m_name);
+    std::shared_ptr<VarDeclAST> var = std::dynamic_pointer_cast<VarDeclAST>(symbolTable->getNode(m_name));
+    llvm::Value* varPtr = var->getRValue();
+    llvm::Type* varType = var->llvmType;
+    std::vector<llvm::Value*> sizesVLA = var->getSizeArrayVLA();
     
     if (!sizesVLA.empty())
     {
@@ -939,6 +952,8 @@ void ProtFunctionAST::codegen()
 {
     LLVMManager& manager = LLVMManager::getInstance();
     auto module = manager.getModule();
+    auto symbolTable = SymbolTableManager::getInstance().getSymbolTable();
+
     std::vector<llvm::Type*> argTypes;
     for (const auto& arg : m_args) {
         argTypes.push_back(arg->llvmType);
@@ -954,8 +969,8 @@ void ProtFunctionAST::codegen()
     {
         arg.setName("arg" + std::to_string(i));
     }
-
-    m_prevSymbolTable->addFunction(m_name, func, m_args);
+    
+    symbolTable->addNode(shared_from_this());
     llvmValue = func;
 }
 
@@ -971,24 +986,39 @@ void FunctionAST::codegen()
     std::vector<llvm::Type*> argTypes;
     for (const auto& arg : m_args) {
         arg->doSemantic();
-        argTypes.push_back(arg->llvmType);
+        if (arg->isReference())
+        {
+            argTypes.push_back(builder->getPtrTy());
+        }
+        else
+        {
+            argTypes.push_back(arg->llvmType);
+        }
     }
 
-    //createFunction
-    llvm::Function* func =nullptr;
     std::vector<std::shared_ptr<ASTNode>> args;
     for (const auto& arg :m_args)
     {
         args.push_back(arg);
     }
-    func = m_prevSymbolTable->getFunction(m_name, args);
+    //createFunction
+    std::shared_ptr<ASTNode> funcAST = m_prevSymbolTable->getNode(m_name);
+    llvm::Function* func = nullptr;
+    if (funcAST)
+    {
+        if (funcAST->llvmValue)
+        {
+            func = llvm::dyn_cast<llvm::Function>(funcAST->llvmValue);
+        }
+    }
     if (!func)
     {
         llvm::FunctionType* funcType = llvm::FunctionType::get(m_returnType, argTypes, false);
         func = llvm::Function::Create(funcType, llvm::Function::ExternalLinkage, m_name, module.get());
-        m_prevSymbolTable->addFunction(m_name, func, m_args);
-        symbolTableFunc->addFunction(m_name, func, m_args);
+        m_prevSymbolTable->addNode(shared_from_this());
+        symbolTableFunc->addNode(shared_from_this());
     }
+    llvmValue = func;
 
     llvm::BasicBlock* entryBB = llvm::BasicBlock::Create(*context, "entry", func);
     builder->SetInsertPoint(entryBB);
@@ -1049,7 +1079,25 @@ void FunctionAST::codegen()
             builder->CreateRet(llvm::Constant::getNullValue(m_returnType));
         }
     }
-    llvmValue = func;
+}
+
+void CallExprAST::doSemantic()
+{
+    auto symbolTable = SymbolTableManager::getInstance().getSymbolTable();
+    for (const auto& arg : m_args)
+    {
+        arg->doSemantic();
+    }
+    std::shared_ptr<FunctionAST> funcNode = std::dynamic_pointer_cast<FunctionAST>(symbolTable->getNode(m_name));
+    if (funcNode)
+    {
+        llvmType = funcNode->getReturnType();
+    }
+    std::shared_ptr<ProtFunctionAST> protNode = std::dynamic_pointer_cast<ProtFunctionAST>(symbolTable->getNode(m_name));
+    if (protNode)
+    {
+        llvmType = protNode->getReturnType();
+    }
 }
 
 void CallExprAST::codegen()
@@ -1060,14 +1108,36 @@ void CallExprAST::codegen()
 
     auto symbolTable = SymbolTableManager::getInstance().getSymbolTable();
 
-    llvm::Function* func = symbolTable->getFunction(m_name,m_args);
+    llvm::Function* func = nullptr;
+    std::vector<std::shared_ptr<VarDeclAST>> argsAST;
 
-    std::vector<llvm::Value*> args;
-    for (const auto& arg : m_args) {
-        arg->codegen();
-        args.push_back(arg->getLValue());
+    std::shared_ptr<FunctionAST> funcNode = std::dynamic_pointer_cast<FunctionAST>(symbolTable->getNode(m_name));
+    if (funcNode)
+    {
+        func = llvm::dyn_cast<llvm::Function>(funcNode->llvmValue);
+        argsAST = funcNode->getArgs();
+    }
+    std::shared_ptr<ProtFunctionAST> protNode = std::dynamic_pointer_cast<ProtFunctionAST>(symbolTable->getNode(m_name));
+    if (protNode)
+    {
+        func = llvm::dyn_cast<llvm::Function>(protNode->llvmValue);
+        argsAST = protNode->getArgs();
     }
 
+    std::vector<llvm::Value*> args;
+    for (size_t i = 0; i < m_args.size(); i++)
+    {
+        m_args[i]->codegen();
+        if (argsAST[i]->isReference())
+        {
+            args.push_back(m_args[i]->getRValue());
+        }
+        else
+        {
+            args.push_back(m_args[i]->getLValue());
+        }
+    }
+    
     llvmValue = builder->CreateCall(func, args);
 }
 

@@ -248,7 +248,7 @@ std::shared_ptr<ASTNode> Parser::parseExponentiation()
 {
 	std::shared_ptr<ASTNode> lhs = parseFactor();
 
-	while (m_tokenStream->type == TokenType::Exponentiation)
+	while (m_tokenStream->type == TokenType::Exponentiation || m_tokenStream->type == TokenType::ExponentiationAssign)
 	{
 		TokenType op = m_tokenStream->type;
 		eat(op);
@@ -409,10 +409,11 @@ std::vector<std::shared_ptr<ASTNode>> Parser::parseVarDecl()
 
 std::shared_ptr<BlockAST> Parser::parseBlock()
 {
-	auto prevSymbolTable = SymbolTableManager::getInstance().getSymbolTable();
+	SymbolTableManager& symbolTableManager = SymbolTableManager::getInstance();
+	auto prevSymbolTable = symbolTableManager.getSymbolTable();
 	auto symbolTableBlock = std::make_shared<SymbolTable>();
 	symbolTableBlock->extend(prevSymbolTable.get());
-	SymbolTableManager::getInstance().setSymbolTable(symbolTableBlock);
+	symbolTableManager.setSymbolTable(symbolTableBlock);
 
 	eat(TokenType::BlockStart);
 
@@ -520,7 +521,7 @@ std::shared_ptr<CallExprAST> Parser::parseCallFunc()
 
 std::shared_ptr<ASTNode> Parser::parseFunction()
 {
-	auto symbolTableManager = SymbolTableManager::getInstance();
+	SymbolTableManager& symbolTableManager = SymbolTableManager::getInstance();
 	auto prevSymbolTable = symbolTableManager.getSymbolTable();
 	auto symbolTableFunc = std::make_shared<SymbolTable>();
 	symbolTableFunc->extend(prevSymbolTable.get());

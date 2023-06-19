@@ -214,6 +214,10 @@ Token Lexer::getOperator() {
     {
         return Token{ TokenType::Exponentiation, op };
     }
+    else if (op == "**=")
+    {
+        return Token{ TokenType::ExponentiationAssign, op };
+    }
     return Token{ TokenType::Invalid, op };
 }
 
