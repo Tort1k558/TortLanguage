@@ -82,7 +82,7 @@ TOKEN: [=] Type: Assign
 TOKEN: [cast] Type: Cast
 TOKEN: [<] Type: Less
 TOKEN: [int] Type: Int
-TOKEN: [>] Type: Greater
+TOKEN: [>] Type: More
 TOKEN: [(] Type: OpenParen
 TOKEN: [a] Type: Identifier
 TOKEN: [or] Type: LogicalOr

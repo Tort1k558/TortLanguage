@@ -260,6 +260,46 @@ void BinaryExprAST::codegen()
         llvmValue = value;
         return;
     }
+    case TokenType::PlusAssign:
+    {
+        BinaryExprAST binaryExpr(TokenType::Plus,m_lhs,m_rhs);
+        binaryExpr.doSemantic();
+        binaryExpr.codegen();
+        llvm::Value* value = binaryExpr.getLValue();
+        builder->CreateStore(value, m_lhs->getRValue());
+        llvmValue = value;
+        return;
+    }
+    case TokenType::MinusAssign:
+    {
+        BinaryExprAST binaryExpr(TokenType::Minus, m_lhs, m_rhs);
+        binaryExpr.doSemantic();
+        binaryExpr.codegen();
+        llvm::Value* value = binaryExpr.getLValue();
+        builder->CreateStore(value, m_lhs->getRValue());
+        llvmValue = value;
+        return;
+    }
+    case TokenType::MulAssign:
+    {
+        BinaryExprAST binaryExpr(TokenType::Mul, m_lhs, m_rhs);
+        binaryExpr.doSemantic();
+        binaryExpr.codegen();
+        llvm::Value* value = binaryExpr.getLValue();
+        builder->CreateStore(value, m_lhs->getRValue());
+        llvmValue = value;
+        return;
+    }
+    case TokenType::DivAssign:
+    {
+        BinaryExprAST binaryExpr(TokenType::Div, m_lhs, m_rhs);
+        binaryExpr.doSemantic();
+        binaryExpr.codegen();
+        llvm::Value* value = binaryExpr.getLValue();
+        builder->CreateStore(value, m_lhs->getRValue());
+        llvmValue = value;
+        return;
+    }
     case TokenType::Or:
     {
         m_lhs->codegen();
@@ -415,7 +455,21 @@ void BinaryExprAST::codegen()
             throw std::runtime_error("ERROR::AST::Invalid type for binary operation " + lhsType->getStructName().str());
         }
         return;
-    case TokenType::Greater:
+    case TokenType::LessOrEqual:
+        if (lhsType->isDoubleTy())
+        {
+            llvmValue = builder->CreateFCmpOLE(lhsValue, rhsValue, "lesstmp");
+        }
+        else if (lhsType->isIntegerTy())
+        {
+            llvmValue = builder->CreateICmpSLE(lhsValue, rhsValue, "lesstmp");
+        }
+        else
+        {
+            throw std::runtime_error("ERROR::AST::Invalid type for binary operation " + lhsType->getStructName().str());
+        }
+        return;
+    case TokenType::More:
         if (lhsType->isDoubleTy())
         {
             llvmValue = builder->CreateFCmpUGT(lhsValue, rhsValue, "greatertmp");
@@ -423,6 +477,20 @@ void BinaryExprAST::codegen()
         else if (lhsType->isIntegerTy())
         {
             llvmValue = builder->CreateICmpSGT(lhsValue, rhsValue, "greatertmp");
+        }
+        else
+        {
+            throw std::runtime_error("ERROR::AST::Invalid type for binary operation " + lhsType->getStructName().str());
+        }
+        return;
+    case TokenType::MoreOrEqual:
+        if (lhsType->isDoubleTy())
+        {
+            llvmValue = builder->CreateFCmpOGE(lhsValue, rhsValue, "lesstmp");
+        }
+        else if (lhsType->isIntegerTy())
+        {
+            llvmValue = builder->CreateICmpSGE(lhsValue, rhsValue, "lesstmp");
         }
         else
         {
@@ -664,7 +732,6 @@ void ConsoleOutputExprAST::codegen()
             llvm::Value* result = builder->CreateSelect(value, true_str, false_str);
             printfArgs.push_back(bool_str);
             printfArgs.push_back(result);
-            llvmValue = builder->CreateCall(printFunc, printfArgs);
         }
     }
     else

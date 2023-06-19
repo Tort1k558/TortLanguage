@@ -142,13 +142,21 @@ Token Lexer::getOperator() {
     {
         return Token{ TokenType::Plus, op };
     }
-    else if (op == "++")
+    else if (op == "+=")
     {
-        return Token{ TokenType::Increment, op };
+        return Token{ TokenType::PlusAssign, op };
     }
     else if (op == "-")
     {
         return Token{ TokenType::Minus, op };
+    }
+    else if (op == "-=")
+    {
+        return Token{ TokenType::MinusAssign, op };
+    }
+    else if (op == "++")
+    {
+        return Token{ TokenType::Increment, op };
     }
     else if (op == "--")
     {
@@ -158,9 +166,17 @@ Token Lexer::getOperator() {
     {
         return Token{ TokenType::Mul, op };
     }
+    else if (op == "*=")
+    {
+        return Token{ TokenType::MulAssign, op };
+    }
     else if (op == "/")
     {
         return Token{ TokenType::Div, op };
+    }
+    else if (op == "/=")
+    {
+        return Token{ TokenType::DivAssign, op };
     }
     else if (op == "=")
     {
@@ -172,11 +188,19 @@ Token Lexer::getOperator() {
     }
     else if (op == ">")
     {
-        return Token{ TokenType::Greater, op };
+        return Token{ TokenType::More, op };
+    }
+    else if (op == ">=")
+    {
+        return Token{ TokenType::MoreOrEqual, op };
     }
     else if (op == "<")
     {
         return Token{ TokenType::Less, op };
+    }
+    else if (op == "<=")
+    {
+        return Token{ TokenType::LessOrEqual, op };
     }
     else if (op == "&")
     {

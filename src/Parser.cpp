@@ -109,7 +109,7 @@ std::shared_ptr<CastAST> Parser::parseCast()
 	eat(TokenType::Less);
 	TokenType castType = checkType().type;
 	eat(castType);
-	eat(TokenType::Greater);
+	eat(TokenType::More);
 	eat(TokenType::OpenParen);
 	std::shared_ptr<ASTNode> node = parseExpression();
 	eat(TokenType::CloseParen);
@@ -199,7 +199,8 @@ std::shared_ptr<ASTNode> Parser::parseBitAndExpr()
 std::shared_ptr<ASTNode> Parser::parseCompareExpr()
 {
 	std::shared_ptr<ASTNode> lhs = parsePlusMinus();
-	while (m_tokenStream->type == TokenType::Less || m_tokenStream->type == TokenType::Greater || m_tokenStream->type == TokenType::Equal)
+	while (m_tokenStream->type == TokenType::Less || m_tokenStream->type == TokenType::More || m_tokenStream->type == TokenType::Equal 
+		|| m_tokenStream->type == TokenType::MoreOrEqual || m_tokenStream->type == TokenType::LessOrEqual)
 	{
 		TokenType op = m_tokenStream->type;
 		eat(op);
@@ -213,7 +214,8 @@ std::shared_ptr<ASTNode> Parser::parsePlusMinus()
 {
 	std::shared_ptr<ASTNode> lhs = parseMulDiv();
 
-	while (m_tokenStream->type == TokenType::Plus || m_tokenStream->type == TokenType::Minus)
+	while (m_tokenStream->type == TokenType::Plus || m_tokenStream->type == TokenType::Minus || m_tokenStream->type == TokenType::PlusAssign
+		|| m_tokenStream->type == TokenType::MinusAssign)
 	{
 		TokenType op = m_tokenStream->type;
 		eat(op);
@@ -229,7 +231,8 @@ std::shared_ptr<ASTNode> Parser::parseMulDiv()
 {
 	std::shared_ptr<ASTNode> lhs = parseExponentiation();
 
-	while (m_tokenStream->type == TokenType::Mul || m_tokenStream->type == TokenType::Div)
+	while (m_tokenStream->type == TokenType::Mul || m_tokenStream->type == TokenType::Div || m_tokenStream->type == TokenType::MulAssign 
+		|| m_tokenStream->type == TokenType::DivAssign)
 	{
 		TokenType op = m_tokenStream->type;
 		eat(op);
