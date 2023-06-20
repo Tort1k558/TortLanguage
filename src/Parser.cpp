@@ -4,11 +4,14 @@
 #include<memory>
 #include<iostream>
 
-using namespace llvm;
+
 Parser::Parser(TokenStream stream) :
 	m_tokenStream(stream),
 	m_globalSymbolTable(std::make_shared<SymbolTable>())
-{}
+{
+
+}
+
 void Parser::parse()
 {
 	SymbolTableManager::getInstance().setSymbolTable(m_globalSymbolTable);
@@ -27,7 +30,7 @@ void Parser::parse()
 	}
 }
 
-std::shared_ptr<ASTNode> Parser::parseLiteral()
+std::shared_ptr<LiteralExprAST> Parser::parseLiteral()
 {
 	std::string minus = "";
 	if (m_tokenStream->type == TokenType::Minus)

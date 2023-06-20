@@ -1,5 +1,5 @@
 #include "SymbolTable.h"
-#include "AST.h"
+#include "AST/AST.h"
 
 
 void SymbolTable::addNode(std::shared_ptr<ASTNode> node)

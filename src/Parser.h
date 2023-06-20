@@ -1,13 +1,31 @@
 #pragma once
-#include"TokenStream.h"
-#include"Token.h"
+
 #include<map>
 #include<memory>
+
 #include<llvm/IR/IRBuilder.h>
 #include<llvm/IR/IntrinsicsXCore.h>
 #include<llvm/IR/LLVMContext.h>
-#include"AST.h"
+
+#include"AST/AST.h"
+#include"AST/VarExprAST.h"
+#include"AST/UnaryExprAST.h"
+#include"AST/CastAST.h"
+#include"AST/CallExprAST.h"
+#include"AST/ReturnAST.h"
+#include"AST/IfAST.h"
+#include"AST/WhileAST.h"
+#include"AST/IndexExprAST.h"
+#include"AST/LiteralExprAST.h"
+#include"AST/BinaryExprAST.h"
+#include"AST/ConsoleOutputExprAST.h"
+#include"AST/ProtFunctionAST.h"
+#include"AST/FunctionAST.h"
+#include"AST/BlockAST.h"
 #include"SymbolTable.h"
+#include"TokenStream.h"
+#include"Token.h"
+
 class Parser
 {
 public:
@@ -36,7 +54,7 @@ private:
 	std::shared_ptr<BreakAST> parseBreak();
 	std::shared_ptr<ContinueAST> parseContinue();
 	std::shared_ptr<IndexExprAST> parseIndex();
-	std::shared_ptr<ASTNode> parseLiteral();
+	std::shared_ptr<LiteralExprAST> parseLiteral();
 	std::shared_ptr<ASTNode> parseFactor();
 	std::shared_ptr<ASTNode> parseExponentiation();
 	std::shared_ptr<ASTNode> parseMulDiv();
