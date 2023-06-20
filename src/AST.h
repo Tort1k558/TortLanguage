@@ -134,10 +134,6 @@ public:
         }
         symbolTable->addNode(shared_from_this());
     }
-    llvm::Value* getRValue() override
-    {
-        return llvmValue;
-    }
     void setValue(std::shared_ptr<ASTNode> value)
     {
         m_value = value;
@@ -158,6 +154,37 @@ public:
     {
         return m_sizeArrayVLA;
     }
+    llvm::Value* getRValue() override
+    {
+        LLVMManager& manager = LLVMManager::getInstance();
+        auto builder = manager.getBuilder();
+        if (!llvmValue)
+        {
+            throw std::runtime_error("The expression has no value!");
+        }
+        return llvmValue;
+    }
+    virtual llvm::Value* getLValue()
+    {
+        LLVMManager& manager = LLVMManager::getInstance();
+        auto builder = manager.getBuilder();
+        if (!llvmValue)
+        {
+            throw std::runtime_error("The expression has no value!");
+        }
+        llvm::AllocaInst* allocaInst = llvm::dyn_cast<llvm::AllocaInst>(llvmValue);
+        if (allocaInst)
+        {
+            llvm::Type* varType = allocaInst->getAllocatedType();
+            if (varType->isArrayTy())
+            {
+                llvm::Value* zero = llvm::ConstantInt::get(builder->getInt64Ty(), 0);
+                return builder->CreateGEP(varType, llvmValue, { zero, zero }, "ptrtoelementarray", true);
+            }
+            return builder->CreateLoad(varType, allocaInst);
+        }
+        return llvmValue;
+    }
     void codegen() override;
 private:
     std::shared_ptr<ASTNode> m_value;
@@ -171,7 +198,7 @@ private:
 class VarExprAST : public ASTNode {
 public:
     VarExprAST() = delete;
-    VarExprAST(std::string name)
+    VarExprAST(std::string name) : m_var(nullptr)
     {
         setName(name);
     }
@@ -180,7 +207,6 @@ public:
     {
         llvmType = SymbolTableManager::getInstance().getSymbolTable()->getNode(m_name)->llvmType;
     }
-    void codegen() override;
     llvm::Value* getRValue() override
     {
         return llvmValue;
@@ -189,13 +215,16 @@ public:
     {
         LLVMManager& manager = LLVMManager::getInstance();
         auto builder = manager.getBuilder();
+        if (m_var->isReference())
+        {
+            return builder->CreateLoad(m_var->llvmType, llvmValue);
+        }
         llvm::AllocaInst* allocaInst = llvm::dyn_cast<llvm::AllocaInst>(llvmValue);
         if (!allocaInst)
         {
             throw std::runtime_error("ERROR::AST::Variable has no address!");
         }
         llvm::Type* varType = allocaInst->getAllocatedType();
-        llvm::Value* zero = llvm::ConstantInt::get(builder->getInt64Ty(), 0);
         if (varType->isArrayTy())
         {
             return llvmValue;
@@ -203,7 +232,9 @@ public:
         return builder->CreateLoad(varType, allocaInst);
 
     }
+    void codegen() override;
 private:
+    std::shared_ptr<VarDeclAST> m_var;
 };
 
 class LiteralExprAST : public ASTNode {

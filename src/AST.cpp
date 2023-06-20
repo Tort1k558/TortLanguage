@@ -158,8 +158,10 @@ void VarDeclAST::codegen()
             throw std::runtime_error("ERROR::AST::The reference must be initialized when declaring!");
         }
         m_value->codegen();
-        llvmValue = m_value->getRValue();
+        llvm::AllocaInst* alloca = builder->CreateAlloca(builder->getPtrTy(), nullptr, m_name.c_str());
+        builder->CreateStore(m_value->getRValue(), alloca);
         symbolTable->addNode(shared_from_this());
+        llvmValue = alloca;
         return;
     }
     llvm::AllocaInst* alloca = builder->CreateAlloca(llvmType, nullptr, m_name.c_str());
@@ -200,8 +202,15 @@ void VarExprAST::codegen()
     LLVMManager& manager = LLVMManager::getInstance();
     auto builder = manager.getBuilder();
     auto symbolTable = SymbolTableManager::getInstance().getSymbolTable();
-    std::shared_ptr<ASTNode> var = symbolTable->getNode(m_name);
-    llvmValue = var->getRValue();
+    m_var = std::dynamic_pointer_cast<VarDeclAST>(symbolTable->getNode(m_name));
+    if (m_var->isReference())
+    {
+        llvmValue = builder->CreateLoad(builder->getPtrTy(), m_var->getRValue());
+    }
+    else
+    {
+        llvmValue = m_var->getRValue();
+    }
 }
 
 void LiteralExprAST::codegen()
@@ -561,7 +570,8 @@ void UnaryExprAST::codegen()
     auto builder = manager.getBuilder();
     auto context = manager.getContext();
     auto symbolTable = SymbolTableManager::getInstance().getSymbolTable();
-    std::shared_ptr<VarDeclAST> var = std::dynamic_pointer_cast<VarDeclAST>(symbolTable->getNode(m_name));
+    std::shared_ptr<VarExprAST> var = std::make_shared<VarExprAST>(m_name);
+    var->codegen();
     llvm::Value* varLocation = var->getRValue();
     llvm::Value* varValue = var->getLValue();
     llvm::Type* varType = varValue->getType();
